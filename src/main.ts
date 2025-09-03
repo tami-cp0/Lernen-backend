@@ -7,6 +7,7 @@ import { config } from 'dotenv';
 import helmet from 'helmet';
 import { ConfigService } from '@nestjs/config';
 import { AppConfigType } from './config/config.types';
+import axios from 'axios';
 
 config();
 
@@ -51,5 +52,15 @@ async function bootstrap() {
   await app.listen(config.get<AppConfigType>('app')!.port);
 
   Logger.log('Application is running on: http://localhost:3000');
+
+  const backendUrl = config.get<AppConfigType>('app')!.backendUrl;
+  setInterval(async () => {
+    try {
+      const response = await axios.get(`${backendUrl}/api/v1/health`, { timeout: 5000 });
+      // Logger.log(response.data);
+    } catch (err) {
+      Logger.warn(`Failed to ping self: ${err.message}`);
+    }
+  }, 1000 * 60 * 14); // every 14 minutes
 }
 bootstrap();

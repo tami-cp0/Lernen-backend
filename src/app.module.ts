@@ -10,6 +10,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { EmailModule } from './common/services/email/email.module';
 import { ChatModule } from './core/chat/chat.module';
 import { UserModule } from './core/user/user.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UserModule } from './core/user/user.module';
     ChatModule,
     UserModule
   ],
+  controllers: [AppController],
   providers: [
     {
       provide: 'APP_FILTER',
