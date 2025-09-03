@@ -27,6 +27,10 @@ class EnvironmentVariables {
   // @IsNotEmpty({ message: 'FRONTEND_URL is required and cannot be empty' })
   // FRONTEND_URL: string;
 
+  // @IsString({ message: 'BACKEND_URL must be a string' })
+  // @IsNotEmpty({ message: 'BACKEND_URL is required and cannot be empty' })
+  // BACKEND_URL: string;
+
   // JWT
   @IsString({ message: 'JWT_REFRESH_EXPIRATION must be a string'})
   @IsNotEmpty({ message: 'JWT_REFRESH_EXPIRATION is required and cannot be empty'})

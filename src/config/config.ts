@@ -8,6 +8,7 @@ export const AppConfig = registerAs(
         name: process.env.APP_NAME,
         port: Number(process.env.APP_PORT || '3000'),
         frontendUrl: process.env.FRONTEND_URL,
+        backendUrl: process.env.BACKEND_URL,
     })
 );
 
