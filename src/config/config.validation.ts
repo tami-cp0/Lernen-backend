@@ -32,13 +32,17 @@ class EnvironmentVariables {
   // BACKEND_URL: string;
 
   // JWT
-  @IsString({ message: 'JWT_REFRESH_EXPIRATION must be a string'})
-  @IsNotEmpty({ message: 'JWT_REFRESH_EXPIRATION is required and cannot be empty'})
-  JWT_REFRESH_EXPIRATION: string
+  @IsString({ message: 'REFRESH_JWT_EXPIRATION must be a string'})
+  @IsNotEmpty({ message: 'REFRESH_JWT_EXPIRATION is required and cannot be empty'})
+  REFRESH_JWT_EXPIRATION: string
 
-  @IsString({ message: 'JWT_ACCESS_EXPIRATION must be a string'})
-  @IsNotEmpty({ message: 'JWT_ACCESS_EXPIRATION is required and cannot be empty'})
-  JWT_ACCESS_EXPIRATION: string
+  @IsString({ message: 'REFRESH_JWT_SECRET must be a string'})
+  @IsNotEmpty({ message: 'REFRESH_JWT_SECRET is required and cannot be empty'})
+  REFRESH_JWT_SECRET: string;
+
+  @IsString({ message: 'JWT_EXPIRATION must be a string'})
+  @IsNotEmpty({ message: 'JWT_EXPIRATION is required and cannot be empty'})
+  JWT_EXPIRATION: string
 
   @IsString({ message: 'JWT_SECRET must be a string'})
   @IsNotEmpty({ message: 'JWT_SECRET is required and cannot be empty'})

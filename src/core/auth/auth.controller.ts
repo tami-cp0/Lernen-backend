@@ -10,6 +10,7 @@ import ResendVerificationEmailBodyDTO from './dto/resendVerificationEmail.dto';
 import { ApiBadRequestResponse, ApiBody, ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 import { ApiDefaultDocProtected, ApiDefaultDocPublic } from 'src/swagger';
 import { LoginResponseDTO } from './dto/loginResponse.dto';
+import { RefreshJwtAuthGuard } from './guards/refresh/refreshJwt.guard';
 
 @ApiExtraModels(LoginResponseDTO)
 @Controller('auth')
@@ -188,7 +189,7 @@ export class AuthController {
         schema: { $ref: getSchemaPath(LoginResponseDTO) },
     })
     @ApiDefaultDocProtected()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(RefreshJwtAuthGuard)
     @HttpCode(200)
     @Post('refresh')
     async refresh(@Request() req: UserRequest ) {

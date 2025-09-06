@@ -11,7 +11,7 @@ import {
 } from './auth.types';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { JwtConfigType } from 'src/config/config.types';
+import { JwtConfigType, RefreshConfigType } from 'src/config/config.types';
 import { Role } from '../user/user.types';
 import { EmailService } from 'src/common/services/email/email.service';
 
@@ -38,8 +38,10 @@ export class AuthService {
 
 			const refreshToken = this.jwtService.sign(payload, {
 				expiresIn:
-					this.configService.get<JwtConfigType>('jwt')!
-						.refreshExpiration!,
+					this.configService.get<RefreshConfigType>('refresh')!
+						.expiration!,
+				secret:
+					this.configService.get<RefreshConfigType>('refresh')!.secret,
 			});
 
 			await this.dbService.db
@@ -184,8 +186,10 @@ export class AuthService {
 
 		const refreshToken = this.jwtService.sign(payload, {
 			expiresIn:
-				this.configService.get<JwtConfigType>('jwt')!
-					.refreshExpiration!,
+				this.configService.get<RefreshConfigType>('refresh')!
+					.expiration,
+			secret:
+				this.configService.get<RefreshConfigType>('refresh')!.secret,
 		});
 
 		await this.dbService.db.transaction(async (tx) => {
@@ -307,8 +311,9 @@ export class AuthService {
 		const accessToken = this.jwtService.sign(payload);
 		const refreshToken = this.jwtService.sign(payload, {
 			expiresIn:
-				this.configService.get<JwtConfigType>('jwt')!
-					.refreshExpiration!,
+				this.configService.get<RefreshConfigType>('refresh')!.expiration,
+			secret:
+				this.configService.get<RefreshConfigType>('refresh')!.secret,
 		});
 
 		await this.dbService.db

@@ -21,8 +21,15 @@ export const JwtConfig = registerAs(
     'jwt',
     () => ({
         secret: process.env.JWT_SECRET,
-        refreshExpiration: process.env.JWT_REFRESH_EXPIRATION,
-        accessExpiration: process.env.JWT_ACCESS_EXPIRATION
+        expiration: process.env.JWT_EXPIRATION
+    })
+)
+
+export const RefreshJwtConfig = registerAs(
+    'refreshJwt',
+    () => ({
+        secret: process.env.REFRESH_JWT_SECRET,
+        expiration: process.env.REFRESH_JWT_EXPIRATION
     })
 )
 
