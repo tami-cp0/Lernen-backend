@@ -182,6 +182,7 @@ export class AuthController {
         summary: "Refreshes the user's auth tokens",
         description: `
             Refreshes both the refresh and access tokens
+            using a valid refresh token provided in the Authorization header.
         `,
     })
     @ApiOkResponse({
