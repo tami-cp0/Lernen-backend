@@ -418,7 +418,7 @@ export class AuthService {
 			},
 		}) as UserWithAuthAccounts | undefined;
 
-		if (!user) throw new BadRequestException('User not found');
+		if (!user) throw new BadRequestException('User account not found');
 
 		const hashedPassword = await bcrypt.hash(newPassword, 10);
 
