@@ -48,7 +48,7 @@ export class EmailService {
     }
 
     await this.transporter.sendMail({
-      from: `"Noto" <${this.configService.get<GmailConfigType>('gmail')!.user}>`,
+      from: `"Lernen" <${this.configService.get<GmailConfigType>('gmail')!.user}>`,
       to,
       subject,
       html,
