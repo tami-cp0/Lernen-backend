@@ -9,11 +9,11 @@ const RegisterEmailTemplate = {
       </head>
       <body>
         <div style="font-family: Arial, sans-serif; color: #333;">
-          <p>Hello <span style="color: #5A67D8;">{{name}}</span>,</p>
+          <p>Hello <span style="color: #8BB83E;">{{name}}</span>,</p>
 
           <p>Use the OTP below to verify your email address:</p>
 
-          <h2 style="color: #5A67D8; letter-spacing: 2px;">{{otp}}</h2>
+          <h2 style="color: #8BB83E; letter-spacing: 2px;">{{otp}}</h2>
 
           <p>This OTP will expire in 10 minutes.</p>
 
