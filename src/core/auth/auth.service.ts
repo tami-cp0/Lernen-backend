@@ -340,7 +340,7 @@ export class AuthService {
 		const user = await this.dbService.db.query.users.findFirst({
 			where: eq(users.email, email),
 		});
-		if (!user) return { message: 'User account not found' };
+		if (!user) throw new BadRequestException('User not found');
 
 		const resetToken = this.jwtService.sign(
 			{ sub: user.id, email: user.email, passwordReset: true },
