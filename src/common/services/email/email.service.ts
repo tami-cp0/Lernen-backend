@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
-import { GmailConfigType } from 'src/config/config.types';
+import { forgotPasswordJwtConfigType, GmailConfigType } from 'src/config/config.types';
 import RegisterEmailTemplate from './templates/otpVerification';
+import PasswordResetEmailTemplate from './templates/passwordReset';
 
 @Injectable()
 export class EmailService {
@@ -22,7 +23,7 @@ export class EmailService {
   async sendEmail(
     emailType: 'email_verification' | 'password_reset',
     to: string,
-    variables: { name?: string; otp?: string },
+    variables: { name?: string; otp?: string; resetToken?: string },
   ) {
     let subject = '';
     let html = '';
@@ -36,7 +37,11 @@ export class EmailService {
         break;
 
       case 'password_reset':
-        throw new Error('Password reset email template not implemented yet.');
+        subject = PasswordResetEmailTemplate.subject;
+        html = PasswordResetEmailTemplate.html
+          .replace('{{name}}', variables.name ?? '')
+          .replace('{{link}}', `${this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.redirectUrl}?token=${variables.resetToken ?? ''}`);
+        break;
 
       default:
         throw new Error(`Unknown email type: ${emailType}`);

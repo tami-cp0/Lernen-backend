@@ -132,11 +132,6 @@ export class UserController {
     //     return await this.userService.verifyEmailUpdate(req.user!.id, body.otp, body.newEmail);
     // }
 
-    // @Put('forgot-password')
-    // async forgotPassword() {
-    //     return await this.userService.forgotPassword();
-    // }
-
     @ApiOperation({
         summary: 'Delete user account',
         description: `

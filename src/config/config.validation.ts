@@ -23,6 +23,19 @@ class EnvironmentVariables {
   @IsNotEmpty({ message: 'DATABASE_URL is required and cannot be empty' })
   DATABASE_URL: string;
 
+  // FORGOT PASSWORD JWT
+  @IsString({ message: 'FORGOT_PASSWORD_JWT_SECRET must be a string' })
+  @IsNotEmpty({ message: 'FORGOT_PASSWORD_JWT_SECRET is required and cannot be empty' })
+  FORGOT_PASSWORD_JWT_SECRET: string;
+
+  @IsString({ message: 'FORGOT_PASSWORD_JWT_EXPIRATION must be a string' })
+  @IsNotEmpty({ message: 'FORGOT_PASSWORD_JWT_EXPIRATION is required and cannot be empty' })
+  FORGOT_PASSWORD_JWT_EXPIRATION: string;
+
+  @IsString({ message: 'FORGOT_PASSWORD_FRONTEND_REDIRECT_URL must be a string' })
+  @IsNotEmpty({ message: 'FORGOT_PASSWORD_FRONTEND_REDIRECT_URL is required and cannot be empty' })
+  FORGOT_PASSWORD_FRONTEND_REDIRECT_URL: string;
+
   // @IsString({ message: 'FRONTEND_URL must be a string' })
   // @IsNotEmpty({ message: 'FRONTEND_URL is required and cannot be empty' })
   // FRONTEND_URL: string;

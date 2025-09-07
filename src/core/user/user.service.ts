@@ -81,8 +81,6 @@ export class UserService {
     // async verifyEmailUpdate(userId: string, otp: string, newEmail: string) {
     // }
 
-    // async forgotPassword(email: string) {
-
     async deleteAccount(userId: string) {
         // Delete all auth accounts associated with the user
         await this.databaseService.db.delete(users).where(eq(users.id, userId));

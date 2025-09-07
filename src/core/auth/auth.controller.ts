@@ -11,6 +11,8 @@ import { ApiBadRequestResponse, ApiBody, ApiCreatedResponse, ApiExtraModels, Api
 import { ApiDefaultDocProtected, ApiDefaultDocPublic } from 'src/swagger';
 import { LoginResponseDTO } from './dto/loginResponse.dto';
 import { RefreshJwtAuthGuard } from './guards/refresh/refreshJwt.guard';
+import ForgotPasswordBodyDTO from './dto/forgotPassword.dto';
+import ResetPasswordBodyDTO from './dto/resetPassword.dto';
 
 @ApiExtraModels(LoginResponseDTO)
 @Controller('auth')
@@ -195,5 +197,15 @@ export class AuthController {
     @Post('refresh')
     async refresh(@Request() req: UserRequest ) {
         return await this.authService.refresh(req.user!)
+    }
+
+    @Post('forgot-password')
+    async forgotPassword(@Body() body: ForgotPasswordBodyDTO) {
+        return await this.authService.forgotPassword(body.email);
+    }
+
+    @Put('reset-password')
+    async resetPassword(@Body() body: ResetPasswordBodyDTO) {
+        return await this.authService.resetPassword(body.token, body.newPassword, body.confirmPassword);
     }
 }

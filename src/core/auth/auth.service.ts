@@ -11,7 +11,7 @@ import {
 } from './auth.types';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { JwtConfigType, RefreshConfigType } from 'src/config/config.types';
+import { forgotPasswordJwtConfigType, JwtConfigType, RefreshConfigType } from 'src/config/config.types';
 import { Role } from '../user/user.types';
 import { EmailService } from 'src/common/services/email/email.service';
 
@@ -334,5 +334,113 @@ export class AuthService {
 			},
 			user,
 		};
+	}
+
+	async forgotPassword(email: string) {
+		const user = await this.dbService.db.query.users.findFirst({
+			where: eq(users.email, email),
+		});
+		if (!user) return { message: 'User account not found' };
+
+		const resetToken = this.jwtService.sign(
+			{ sub: user.id, email: user.email, passwordReset: true },
+			{ 
+				expiresIn: this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.expiration,
+				secret: this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.secret
+			}
+		);
+
+		// Store token hash in otps table. A new table can be created later
+		await this.dbService.db.insert(otps).values({
+			userId: user.id,
+			otpHash: await bcrypt.hash(resetToken, 10),
+			purpose: 'password_reset',
+			expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+			consumed: false,
+		});
+
+		await this.emailService.sendEmail('password_reset', email, {
+			name: user.firstName,
+			resetToken,
+		});
+
+		return {
+			message:
+				'An email for password reset has been sent to your email.',
+		};
+	}
+
+	async resetPassword(token: string, newPassword: string, confirmPassword: string) {
+		let payload: any;
+
+		if (newPassword !== confirmPassword) {
+			throw new BadRequestException('Passwords do not match');
+		}
+
+		try {
+			payload = this.jwtService.verify(token, {
+				secret: this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.secret
+			});
+		} catch (e) {
+			throw new BadRequestException('Invalid or expired link');
+		}
+
+		if (!payload.passwordReset || !payload.sub || !payload.email) {
+			throw new BadRequestException('Invalid link');
+		}
+
+		// Check if token was already used
+		const [otpRecord] = await this.dbService.db.query.otps.findMany({
+			where: and(
+				eq(otps.userId, payload.sub),
+				eq(otps.purpose, 'password_reset')
+			),
+			orderBy: [desc(otps.createdAt)],
+			limit: 1,
+		});
+
+		const now = new Date();
+
+		if (!otpRecord) throw new BadRequestException('Invalid reset link');
+		if (otpRecord.consumed) throw new BadRequestException('Reset link has already been used');
+		if (otpRecord.expiresAt <= now) throw new BadRequestException('Reset link has expired');
+
+		const isTokenValid = await bcrypt.compare(token, otpRecord.otpHash);
+		if (!isTokenValid) throw new BadRequestException('Invalid reset link');
+
+
+		const user = await this.dbService.db.query.users.findFirst({
+			where: eq(users.id, payload.sub),
+			with: {
+				authAccounts: {
+					where: eq(authAccounts.provider, 'email'),
+				},
+			},
+		}) as UserWithAuthAccounts | undefined;
+
+		if (!user) throw new BadRequestException('User not found');
+
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+		await this.dbService.db.transaction(async (tx) => {
+			// Mark token as consumed
+			await tx
+				.update(otps)
+				.set({ consumed: true, updatedAt: now })
+				.where(eq(otps.id, otpRecord.id));
+
+			// Update password
+			await tx
+				.update(authAccounts)
+				.set({ passwordHash: hashedPassword, updatedAt: new Date() })
+				.where(
+					and(
+						eq(authAccounts.userId, user.id),
+						eq(authAccounts.provider, 'email')
+					)
+				);
+		});
+
+		return { message: 'Password has been reset' };
 	}
 }

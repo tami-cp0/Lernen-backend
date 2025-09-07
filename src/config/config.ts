@@ -33,6 +33,15 @@ export const RefreshJwtConfig = registerAs(
     })
 )
 
+export const forgotPasswordJwtConfig = registerAs(
+    'forgotPasswordJwt',
+    () => ({
+        secret: process.env.FORGOT_PASSWORD_JWT_SECRET,
+        expiration: process.env.FORGOT_PASSWORD_JWT_EXPIRATION,
+        redirectUrl: process.env.FORGOT_PASSWORD_FRONTEND_REDIRECT_URL
+    })
+)
+
 export const GmailConfig = registerAs(
     'gmail',
     () => ({ 
