@@ -33,7 +33,7 @@ export const RefreshJwtConfig = registerAs(
     })
 )
 
-export const forgotPasswordJwtConfig = registerAs(
+export const ForgotPasswordJwtConfig = registerAs(
     'forgotPasswordJwt',
     () => ({
         secret: process.env.FORGOT_PASSWORD_JWT_SECRET,
@@ -63,5 +63,7 @@ export const configurations = [
     DatabaseConfig,
     JwtConfig,
     GmailConfig,
-    OpenAIConfig
+    OpenAIConfig,
+    RefreshJwtConfig,
+    ForgotPasswordJwtConfig
 ];

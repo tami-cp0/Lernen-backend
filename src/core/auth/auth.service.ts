@@ -11,9 +11,10 @@ import {
 } from './auth.types';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { forgotPasswordJwtConfigType, JwtConfigType, RefreshConfigType } from 'src/config/config.types';
+import { ForgotPasswordJwtConfigType, JwtConfigType, RefreshJwtConfigType } from 'src/config/config.types';
 import { Role } from '../user/user.types';
 import { EmailService } from 'src/common/services/email/email.service';
+import { env } from 'process';
 
 @Injectable()
 export class AuthService {
@@ -38,10 +39,10 @@ export class AuthService {
 
 			const refreshToken = this.jwtService.sign(payload, {
 				expiresIn:
-					this.configService.get<RefreshConfigType>('refresh')!
+					this.configService.get<RefreshJwtConfigType>('refresh')!
 						.expiration!,
 				secret:
-					this.configService.get<RefreshConfigType>('refresh')!.secret,
+					this.configService.get<RefreshJwtConfigType>('refresh')!.secret,
 			});
 
 			await this.dbService.db
@@ -186,10 +187,10 @@ export class AuthService {
 
 		const refreshToken = this.jwtService.sign(payload, {
 			expiresIn:
-				this.configService.get<RefreshConfigType>('refresh')!
+				this.configService.get<RefreshJwtConfigType>('refresh')!
 					.expiration,
 			secret:
-				this.configService.get<RefreshConfigType>('refresh')!.secret,
+				this.configService.get<RefreshJwtConfigType>('refresh')!.secret,
 		});
 
 		await this.dbService.db.transaction(async (tx) => {
@@ -311,9 +312,9 @@ export class AuthService {
 		const accessToken = this.jwtService.sign(payload);
 		const refreshToken = this.jwtService.sign(payload, {
 			expiresIn:
-				this.configService.get<RefreshConfigType>('refresh')!.expiration,
+				this.configService.get<RefreshJwtConfigType>('refresh')!.expiration,
 			secret:
-				this.configService.get<RefreshConfigType>('refresh')!.secret,
+				this.configService.get<RefreshJwtConfigType>('refresh')!.secret,
 		});
 
 		await this.dbService.db
@@ -345,8 +346,8 @@ export class AuthService {
 		const resetToken = this.jwtService.sign(
 			{ sub: user.id, email: user.email, passwordReset: true },
 			{ 
-				expiresIn: this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.expiration,
-				secret: this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.secret
+				expiresIn: this.configService.get<ForgotPasswordJwtConfigType>('forgotPasswordJwt')!.expiration,
+				secret: this.configService.get<ForgotPasswordJwtConfigType>('forgotPasswordJwt')!.secret
 			}
 		);
 
@@ -379,7 +380,7 @@ export class AuthService {
 
 		try {
 			payload = this.jwtService.verify(token, {
-				secret: this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.secret
+				secret: this.configService.get<ForgotPasswordJwtConfigType>('forgotPasswordJwt')!.secret
 			});
 		} catch (e) {
 			throw new BadRequestException('Invalid or expired link');

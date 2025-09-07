@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
-import { forgotPasswordJwtConfigType, GmailConfigType } from 'src/config/config.types';
+import { ForgotPasswordJwtConfigType, GmailConfigType } from 'src/config/config.types';
 import RegisterEmailTemplate from './templates/otpVerification';
 import PasswordResetEmailTemplate from './templates/passwordReset';
 
@@ -40,7 +40,7 @@ export class EmailService {
         subject = PasswordResetEmailTemplate.subject;
         html = PasswordResetEmailTemplate.html
           .replace('{{name}}', variables.name ?? '')
-          .replace('{{link}}', `${this.configService.get<forgotPasswordJwtConfigType>('forgotPasswordJwt')!.redirectUrl}?token=${variables.resetToken ?? ''}`);
+          .replace('{{link}}', `${this.configService.get<ForgotPasswordJwtConfigType>('forgotPasswordJwt')!.redirectUrl}?token=${variables.resetToken ?? ''}`);
         break;
 
       default:

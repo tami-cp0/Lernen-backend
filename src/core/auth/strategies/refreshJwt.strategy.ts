@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException, UnauthorizedException } from 
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
-import { RefreshConfigType } from "src/config/config.types";
+import { RefreshJwtConfigType } from "src/config/config.types";
 import { JwtPayload } from "../auth.types";
 import { DatabaseService } from "src/database/database.service";
 import { users } from "src/database/schema";
@@ -17,7 +17,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'refresh') {
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: configService.get<RefreshConfigType>('refresh')!.secret!,
+      secretOrKey: configService.get<RefreshJwtConfigType>('refresh')!.secret!,
       ignoreExpiration: false,
     });
   }
