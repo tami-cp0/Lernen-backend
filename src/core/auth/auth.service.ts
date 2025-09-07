@@ -39,10 +39,9 @@ export class AuthService {
 
 			const refreshToken = this.jwtService.sign(payload, {
 				expiresIn:
-					this.configService.get<RefreshJwtConfigType>('refresh')!
-						.expiration!,
+					this.configService.get<RefreshJwtConfigType>('refreshJwt')!.expiration,
 				secret:
-					this.configService.get<RefreshJwtConfigType>('refresh')!.secret,
+					this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
 			});
 
 			await this.dbService.db
@@ -187,10 +186,10 @@ export class AuthService {
 
 		const refreshToken = this.jwtService.sign(payload, {
 			expiresIn:
-				this.configService.get<RefreshJwtConfigType>('refresh')!
+				this.configService.get<RefreshJwtConfigType>('refreshJwt')!
 					.expiration,
 			secret:
-				this.configService.get<RefreshJwtConfigType>('refresh')!.secret,
+				this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
 		});
 
 		await this.dbService.db.transaction(async (tx) => {
@@ -312,9 +311,9 @@ export class AuthService {
 		const accessToken = this.jwtService.sign(payload);
 		const refreshToken = this.jwtService.sign(payload, {
 			expiresIn:
-				this.configService.get<RefreshJwtConfigType>('refresh')!.expiration,
+				this.configService.get<RefreshJwtConfigType>('refreshJwt')!.expiration,
 			secret:
-				this.configService.get<RefreshJwtConfigType>('refresh')!.secret,
+				this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
 		});
 
 		await this.dbService.db
