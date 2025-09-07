@@ -1,4 +1,14 @@
-import { Controller, Post, UseGuards, Request, Query, Body, HttpCode, Put, Req } from '@nestjs/common';
+import {
+	Controller,
+	Post,
+	UseGuards,
+	Request,
+	Query,
+	Body,
+	HttpCode,
+	Put,
+	Req,
+} from '@nestjs/common';
 import { Request as UserRequest } from 'express';
 import { LocalAuthGuard } from './guards/local/local.guard';
 import { AuthService } from './auth.service';
@@ -7,7 +17,17 @@ import { LoginBodyDTO, LoginQueryDTO } from './dto/login.dto';
 import { RegisterLocalBodyDTO } from './dto/register.dto';
 import VerifyEmailBodyDTO from './dto/verifyEmail.dto';
 import ResendVerificationEmailBodyDTO from './dto/resendVerificationEmail.dto';
-import { ApiBadRequestResponse, ApiBody, ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import {
+	ApiBadRequestResponse,
+	ApiBody,
+	ApiCreatedResponse,
+	ApiExtraModels,
+	ApiNoContentResponse,
+	ApiOkResponse,
+	ApiOperation,
+	ApiUnauthorizedResponse,
+	getSchemaPath,
+} from '@nestjs/swagger';
 import { ApiDefaultDocProtected, ApiDefaultDocPublic } from 'src/swagger';
 import { LoginResponseDTO } from './dto/loginResponse.dto';
 import { RefreshJwtAuthGuard } from './guards/refresh/refreshJwt.guard';
@@ -17,195 +37,282 @@ import ResetPasswordBodyDTO from './dto/resetPassword.dto';
 @ApiExtraModels(LoginResponseDTO)
 @Controller('auth')
 export class AuthController {
-    constructor(
-        private authService: AuthService,
-    ) {}
+	constructor(private authService: AuthService) {}
 
-    @ApiOperation({
-        summary: 'Login a user',
-        description: `
+	@ApiOperation({
+		summary: 'Login a user',
+		description: `
             Authenticates a user using email/password (provider = "email") or OAuth (provider = "google").
             - Returns access & refresh tokens and the user object for email logins.
             - Google login: not implemented yet.
         `,
-    })
-    @ApiBody({ type: LoginBodyDTO })
-    @ApiCreatedResponse({
-        description: 'Login successful',
-        schema: { $ref: getSchemaPath(LoginResponseDTO) },
-    })
-    @ApiBadRequestResponse({
-        description: 'Missing or invalid input',
-        schema: {
-            type: 'object',
-            properties: {
-            statusCode: { type: 'number', example: 400 },
-            message: { type: 'string', example: 'Unsupported provider' },
-            error: { type: 'string', example: 'Bad Request' },
-            },
-        },
-    })
-    @ApiUnauthorizedResponse({
-        description: 'Invalid credentials',
-        schema: {
-            type: 'object',
-            properties: {
-            message: { type: 'string', example: 'Invalid email or password' },
-            error: { type: 'string', example: 'Unauthorized' },
-            statusCode: { type: 'number', example: 401 },
-            },
-        },
-    })
-    @ApiDefaultDocPublic()
-    @UseGuards(LocalAuthGuard)
-    @Post('login')
-    async login(@Request() req: UserRequest, @Query() query: LoginQueryDTO) {
-        return await this.authService.login(req.user!, query.provider);
-    }
+	})
+	@ApiBody({ type: LoginBodyDTO })
+	@ApiCreatedResponse({
+		description: 'Login successful',
+		schema: { $ref: getSchemaPath(LoginResponseDTO) },
+	})
+	@ApiBadRequestResponse({
+		description: 'Missing or invalid input',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: { type: 'string', example: 'Unsupported provider' },
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
+	@ApiUnauthorizedResponse({
+		description: 'Invalid credentials',
+		schema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					example: 'Invalid email or password',
+				},
+				error: { type: 'string', example: 'Unauthorized' },
+				statusCode: { type: 'number', example: 401 },
+			},
+		},
+	})
+	@ApiDefaultDocPublic()
+	@UseGuards(LocalAuthGuard)
+	@Post('login')
+	async login(@Request() req: UserRequest, @Query() query: LoginQueryDTO) {
+		return await this.authService.login(req.user!, query.provider);
+	}
 
-    
-    @ApiOperation({
-        summary: 'Logout user',
-        description: `
+	@ApiOperation({
+		summary: 'Logout user',
+		description: `
             Invalidates the current user's refresh token so it can no longer be used to obtain new access tokens.
             Requires a valid Bearer token.
         `,
-    })
-    @ApiNoContentResponse({ description: 'Logout successful' })
-    @ApiDefaultDocProtected()
-    @UseGuards(JwtAuthGuard)
-    @HttpCode(204)
-    @Post('logout')
-    async logout(@Request() req: UserRequest) {
-        await this.authService.logout(req.user!.id);
-    }
+	})
+	@ApiNoContentResponse({ description: 'Logout successful' })
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@HttpCode(204)
+	@Post('logout')
+	async logout(@Request() req: UserRequest) {
+		await this.authService.logout(req.user!.id);
+	}
 
+	@ApiOperation({
+		summary: 'Register a new local account',
+		description:
+			'Creates a new user account using email, first name, last name, and password. ' +
+			'Sends a verification OTP to the provided email address. ' +
+			'Fails if the email is already registered.',
+	})
+	@ApiCreatedResponse({
+		description:
+			'User registered successfully. A verification OTP has been sent to the provided email.',
+		schema: {
+			example: {
+				message:
+					'An email for OTP verification has been sent to your email.',
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Bad Request — invalid input or email already registered.',
+		schema: {
+			example: {
+				statusCode: 400,
+				message: 'User with this email already exists',
+				error: 'Bad Request',
+			},
+		},
+	})
+	@ApiDefaultDocPublic()
+	@Post('register')
+	async register(@Body() body: RegisterLocalBodyDTO) {
+		return await this.authService.registerLocal(
+			body.email,
+			body.firstName,
+			body.lastName,
+			body.password,
+			body.role
+		);
+	}
 
-    @ApiOperation({
-        summary: 'Register a new local account',
-        description:
-        'Creates a new user account using email, first name, last name, and password. ' +
-        'Sends a verification OTP to the provided email address. ' +
-        'Fails if the email is already registered.',
-    })
-    @ApiCreatedResponse({
-        description:
-        'User registered successfully. A verification OTP has been sent to the provided email.',
-        schema: {
-        example: {
-            message: 'An email for OTP verification has been sent to your email.',
-        },
-        },
-    })
-    @ApiBadRequestResponse({
-        description: 'Bad Request — invalid input or email already registered.',
-        schema: {
-        example: {
-            statusCode: 400,
-            message: 'User with this email already exists',
-            error: 'Bad Request',
-        },
-        },
-    })
-    @ApiDefaultDocPublic()
-    @Post('register')
-    async register(@Body() body: RegisterLocalBodyDTO) {
-        return await this.authService.registerLocal(
-            body.email, body.firstName, body.lastName,
-            body.password, body.role
-        );
-    }
+	// use loginResponseDTO since successful verification is the same as loggin in.
+	@ApiOperation({
+		summary: 'Verify user email',
+		description:
+			"Verifies a user's email address using a one-time password (OTP) sent to the email. " +
+			'If the OTP is valid, the email authentication account is marked as verified and JWT tokens are returned.',
+	})
+	@ApiOkResponse({
+		description:
+			'Email verified successfully. Returns access and refresh tokens.',
+		schema: { $ref: getSchemaPath(LoginResponseDTO) },
+	})
+	@ApiBadRequestResponse({
+		description: 'This OTP has already been used or expired or invalid',
+		schema: {
+			example: {
+				statusCode: 400,
+				message: 'Invalid OTP',
+				error: 'Bad Request',
+			},
+		},
+	})
+	@ApiDefaultDocPublic()
+	@HttpCode(200)
+	@Put('verify-email')
+	async verifyEmail(@Body() body: VerifyEmailBodyDTO) {
+		return await this.authService.verifyEmail(body.email, body.otp);
+	}
 
-    // use loginResponseDTO since successful verification is the same as loggin in.
-    @ApiOperation({
-    summary: 'Verify user email',
-        description:
-            'Verifies a user\'s email address using a one-time password (OTP) sent to the email. ' +
-            'If the OTP is valid, the email authentication account is marked as verified and JWT tokens are returned.',
-    })
-    @ApiOkResponse({
-        description: 'Email verified successfully. Returns access and refresh tokens.',
-        schema: { $ref: getSchemaPath(LoginResponseDTO) }
-    })
-    @ApiBadRequestResponse({
-        description: 'This OTP has already been used or expired or invalid',
-        schema: {
-        example: {
-            statusCode: 400,
-            message: 'Invalid OTP',
-            error: 'Bad Request',
-        },
-        },
-    })
-    @ApiDefaultDocPublic()
-    @HttpCode(200)
-    @Put('verify-email')
-    async verifyEmail(@Body() body: VerifyEmailBodyDTO) {
-        return await this.authService.verifyEmail(body.email, body.otp);
-    }
+	@ApiOperation({
+		summary: 'Resend Email Verification OTP',
+		description:
+			'Sends a new email verification OTP to the user’s registered email address. This is used when the previous OTP has expired or was not received.',
+	})
+	@ApiOkResponse({
+		description: 'OTP email successfully resent',
+		schema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					example:
+						'An email for OTP verification has been sent to your email.',
+				},
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Bad Request — User not found or invalid input.',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: {
+					type: 'string',
+					example: 'User not found or invalid input',
+				},
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
+	@ApiDefaultDocPublic()
+	@HttpCode(200)
+	@Post('resend-verification-email')
+	async resendVerificationEmail(
+		@Body() body: ResendVerificationEmailBodyDTO
+	) {
+		return await this.authService.resendVerificationEmail(body.email);
+	}
 
-    @ApiOperation({
-        summary: 'Resend Email Verification OTP',
-        description:
-            'Sends a new email verification OTP to the user’s registered email address. This is used when the previous OTP has expired or was not received.',
-    })
-    @ApiOkResponse({
-        description: 'OTP email successfully resent',
-        schema: {
-            type: 'object',
-            properties: {
-                message: {
-                    type: 'string',
-                    example: 'An email for OTP verification has been sent to your email.',
-                },
-            },
-        },
-    })
-    @ApiBadRequestResponse({
-        description: 'Bad Request — User not found or invalid input.',
-        schema: {
-            type: 'object',
-            properties: {
-                statusCode: { type: 'number', example: 400 },
-                message: { type: 'string', example: 'User not found or invalid input' },
-                error: { type: 'string', example: 'Bad Request' },
-            },
-        },
-    })
-    @ApiDefaultDocPublic()
-    @HttpCode(200)
-    @Post('resend-verification-email')
-    async resendVerificationEmail(@Body() body: ResendVerificationEmailBodyDTO) {
-        return await this.authService.resendVerificationEmail(body.email);
-    }
-
-    // use loginResponseDTO since successful verification is the same as loggin in.
-    @ApiOperation({
-        summary: "Refreshes the user's auth tokens",
-        description: `
+	// use loginResponseDTO since successful verification is the same as loggin in.
+	@ApiOperation({
+		summary: "Refreshes the user's auth tokens",
+		description: `
             Refreshes both the refresh and access tokens
             using a valid refresh token provided in the Authorization header.
         `,
-    })
-    @ApiOkResponse({
-        description: 'Tokens refreshed successfully',
-        schema: { $ref: getSchemaPath(LoginResponseDTO) },
-    })
-    @ApiDefaultDocProtected()
-    @UseGuards(RefreshJwtAuthGuard)
-    @HttpCode(200)
-    @Post('refresh')
-    async refresh(@Request() req: UserRequest ) {
-        return await this.authService.refresh(req.user!)
-    }
+	})
+	@ApiOkResponse({
+		description: 'Tokens refreshed successfully',
+		schema: { $ref: getSchemaPath(LoginResponseDTO) },
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(RefreshJwtAuthGuard)
+	@HttpCode(200)
+	@Post('refresh')
+	async refresh(@Request() req: UserRequest) {
+		return await this.authService.refresh(req.user!);
+	}
 
-    @Post('forgot-password')
-    async forgotPassword(@Body() body: ForgotPasswordBodyDTO) {
-        return await this.authService.forgotPassword(body.email);
-    }
+	@ApiOperation({
+		summary: 'Send password reset email',
+		description:
+			'Sends a password reset email to the user with a secure token link. Returns success message regardless of whether email exists (for security).',
+	})
+	@ApiOkResponse({
+		description: 'Password reset email sent successfully',
+		schema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					example:
+						'An email for password reset has been sent to your email.',
+				},
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		description:
+			'Bad Request — invalid input, missing fields, or validation errors',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: {
+					type: 'string',
+					example: 'email must be a valid email address',
+					description:
+						'Could be: email validation errors, missing email field, or other input validation failures',
+				},
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
+	@ApiDefaultDocPublic()
+	@HttpCode(200)
+	@Post('forgot-password')
+	async forgotPassword(@Body() body: ForgotPasswordBodyDTO) {
+		return await this.authService.forgotPassword(body.email);
+	}
 
-    @Put('reset-password')
-    async resetPassword(@Body() body: ResetPasswordBodyDTO) {
-        return await this.authService.resetPassword(body.token, body.newPassword, body.confirmPassword);
-    }
+	@ApiOperation({
+		summary: 'Reset user password',
+		description:
+			'Resets user password using a valid reset token from the forgot-password email. Token can only be used once and expires after 10 minutes.',
+	})
+	@ApiOkResponse({
+		description: 'Password reset successful',
+		schema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					example: 'Password has been reset',
+				},
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		description:
+			'Bad Request — invalid token, expired token, password validation errors, or token already used',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: {
+					type: 'string',
+					example: 'Invalid or expired link',
+					description:
+						'Could be: Invalid/expired token, token already used, passwords do not match, weak password, missing fields, or user not found',
+				},
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
+	@ApiDefaultDocPublic()
+	@HttpCode(200)
+	@Put('reset-password')
+	async resetPassword(@Body() body: ResetPasswordBodyDTO) {
+		return await this.authService.resetPassword(
+			body.token,
+			body.newPassword,
+			body.confirmPassword
+		);
+	}
 }

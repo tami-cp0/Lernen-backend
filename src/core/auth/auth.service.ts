@@ -366,7 +366,7 @@ export class AuthService {
 
 		return {
 			message:
-				'An email for password reset has been sent to your email.',
+				'An password reset link has been sent to your email.',
 		};
 	}
 
