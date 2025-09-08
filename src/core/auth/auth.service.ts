@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { and, eq, desc } from 'drizzle-orm';
 import { DatabaseService } from 'src/database/database.service';
 import { authAccounts } from 'src/database/schema/authAccounts';
@@ -125,7 +125,7 @@ export class AuthService {
 			}
 
 			if (!user.onboarded) {
-				throw new BadRequestException('User not onboarded');
+				throw new ForbiddenException('User not onboarded');
 			}
 
 			const tokenRecord = await this.dbService.db.query.tokens.findFirst({

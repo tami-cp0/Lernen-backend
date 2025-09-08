@@ -16,6 +16,7 @@ import {
 	ApiBody,
 	ApiCreatedResponse,
 	ApiExtraModels,
+	ApiForbiddenResponse,
 	ApiOkResponse,
 	ApiOperation,
 	ApiUnauthorizedResponse,
@@ -44,6 +45,17 @@ export class AuthController {
 		schema: {
 			example: {
 			message: 'Magic link sent! Please check your email',
+			},
+		},
+	})
+	@ApiForbiddenResponse({
+		description: 'User not onboarded',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 403 },
+				message: { type: 'string', example: 'User not onboarded' },
+				error: { type: 'string', example: 'Forbidden' },
 			},
 		},
 	})
