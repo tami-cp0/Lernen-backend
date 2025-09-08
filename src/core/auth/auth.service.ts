@@ -124,6 +124,10 @@ export class AuthService {
 				throw new BadRequestException('Invalid link');
 			}
 
+			if (!user.onboarded) {
+				throw new BadRequestException('User not onboarded');
+			}
+
 			const tokenRecord = await this.dbService.db.query.tokens.findFirst({
 				where: and(
 					eq(tokens.userId, user.id),
