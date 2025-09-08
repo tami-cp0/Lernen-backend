@@ -9,7 +9,7 @@ const MagicLinkEmailTemplate = {
       </head>
       <body>
         <div style="font-family: Arial, sans-serif; color: #333;">
-          <p>You requested to sign in. You can click the link below to verify get redirected to Lernen:</p>
+          <p>You requested to sign in. You can click the link below to verify and confirm:</p>
             <a 
                 href="{{link}}" 
                 style="
@@ -23,7 +23,7 @@ const MagicLinkEmailTemplate = {
                 margin: 5px 0;
                 "
             >
-              Reset Password
+              Sign in
             </a>
           <p>This link will expire in 10 minutes.</p>
 
