@@ -16,6 +16,15 @@ class UserData implements InferSelectModel<typeof users> {
     @ApiProperty({ example: 'Doe', description: 'Last name' })
     lastName: string;
 
+    @ApiProperty({ example: 'Bachelor\'s Degree', description: 'User education level' })
+    educationLevel: string | null;
+    
+    @ApiProperty({ example: ['math', 'science'], type: [String], description: 'User preferences' })
+    preferences: string[];
+
+    @ApiProperty({ example: false, description: 'Whether the user has completed onboarding' })
+    onboarded: boolean;
+
     @ApiProperty({ example: 'learner', enum: ['learner', 'teacher', 'admin'], description: 'User role' })
     role: Role;
 

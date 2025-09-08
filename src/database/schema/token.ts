@@ -2,17 +2,14 @@ import { pgTable, uuid, varchar, timestamp, boolean, pgEnum } from "drizzle-orm/
 import { users } from "./users";
 import { relations } from "drizzle-orm";
 
-// login_2fa can be added later
-export const purposeEnum = pgEnum('otp_purpose', [
-    'email_verification',
-    'password_reset',
+export const purposeEnum = pgEnum('token_purpose', [
+    'sign_in',
 ]);
 
-// otpuserId index can be added later
-export const otps = pgTable('otps', {
+export const tokens = pgTable('tokens', {
     id: uuid().defaultRandom().primaryKey(),
     userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-    otpHash: varchar('otp_hash', { length: 255 }).notNull(), // hashed OTP
+    tokenHash: varchar('token_hash', { length: 255 }).notNull(), // hashed Token
     purpose: purposeEnum().notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     consumed: boolean('consumed').default(false).notNull(),
@@ -20,9 +17,9 @@ export const otps = pgTable('otps', {
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const otpsRelations = relations(otps, ({ one }) => ({
+export const tokensRelations = relations(tokens, ({ one }) => ({
     user: one(users, {
-        fields: [otps.userId],
+        fields: [tokens.userId],
         references: [users.id],
     }),
 }));

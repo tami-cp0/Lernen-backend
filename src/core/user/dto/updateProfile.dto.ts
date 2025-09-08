@@ -15,7 +15,7 @@ export class AtLeastOneFieldConstraint implements ValidatorConstraintInterface {
     }
 
     defaultMessage(args: ValidationArguments): string {
-        return 'At least one field (firstName, lastName, or role) must be provided';
+        return 'At least one field (firstName, lastName, educationLevel or role) must be provided';
     }
 }
 
@@ -48,10 +48,18 @@ export class UpdateProfileBodyDTO {
         example: 'teacher',
         enum: ['learner', 'teacher'],
     })
-    @IsIn(['learner', 'teacher'], {
-        message: 'role must be one of: learner, teacher',
+    @IsIn(['user'], {
+        message: 'role must be user',
     })
     @IsString({ message: 'role must be a string' })
     @IsOptional()
     role?: Omit<Role, 'admin'>;
+
+    @ApiPropertyOptional({
+        description: 'User education level',
+        example: 'High School',
+    })
+    @IsString({ message: 'educationLevel must be a string' })
+    @IsOptional()
+    educationLevel?: string;
 }

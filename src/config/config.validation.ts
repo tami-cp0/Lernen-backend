@@ -18,6 +18,10 @@ class EnvironmentVariables {
   @IsNotEmpty({ message: 'APP_PORT is required and cannot be empty' })
   APP_PORT: string;
 
+  @IsString({ message: 'ONBOARDING_URL must be a string' })
+  @IsNotEmpty({ message: 'ONBOARDING_URL is required and cannot be empty' })
+  ONBOARDING_URL: string;
+
   // DB
   @IsString({ message: 'DATABASE_URL must be a string' })
   @IsNotEmpty({ message: 'DATABASE_URL is required and cannot be empty' })

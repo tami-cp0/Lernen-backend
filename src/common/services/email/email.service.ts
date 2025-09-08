@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
-import { ForgotPasswordJwtConfigType, GmailConfigType } from 'src/config/config.types';
-import RegisterEmailTemplate from './templates/otpVerification';
-import PasswordResetEmailTemplate from './templates/passwordReset';
+import { AppConfigType, GmailConfigType } from 'src/config/config.types';
+import MagicLinkEmailTemplate from './templates/magicLink';
 
 @Injectable()
 export class EmailService {
@@ -21,26 +20,18 @@ export class EmailService {
 
   // add queing support later
   async sendEmail(
-    emailType: 'email_verification' | 'password_reset',
+    emailType: 'magic_link',
     to: string,
-    variables: { name?: string; otp?: string; resetToken?: string },
+    variables: { authToken?: string },
   ) {
     let subject = '';
     let html = '';
 
     switch (emailType) {
-      case 'email_verification':
-        subject = RegisterEmailTemplate.subject;
-        html = RegisterEmailTemplate.html
-          .replace('{{name}}', variables.name ?? '')
-          .replace('{{otp}}', variables.otp ?? '');
-        break;
-
-      case 'password_reset':
-        subject = PasswordResetEmailTemplate.subject;
-        html = PasswordResetEmailTemplate.html
-          .replace('{{name}}', variables.name ?? '')
-          .replace('{{link}}', `${this.configService.get<ForgotPasswordJwtConfigType>('forgotPasswordJwt')!.redirectUrl}?token=${variables.resetToken ?? ''}`);
+      case 'magic_link':
+        subject = MagicLinkEmailTemplate.subject;
+        html = MagicLinkEmailTemplate.html
+          .replace('{{link}}', `${this.configService.get<AppConfigType>('app')?.onboardingUrl}?token=${variables.authToken ?? ''}`);
         break;
 
       default:

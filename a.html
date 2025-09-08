@@ -1,7 +1,4 @@
-const PasswordResetEmailTemplate = {
-  "subject": "Password Reset",
-  "html": `
-    <html lang="en">
+<html lang="en">
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,7 +9,7 @@ const PasswordResetEmailTemplate = {
           <p>Hello <span style="color: #8BB83E;">{{name}}</span>,</p>
           <p>Click the button below to reset your password:</p>
             <a 
-                href="{{link}}" 
+                href="{{otp}}" 
                 style="
                 display: inline-block; 
                 padding: 10px 20px; 
@@ -36,7 +33,3 @@ const PasswordResetEmailTemplate = {
         </div>
       </body>
     </html>
-  `
-};
-
-export default PasswordResetEmailTemplate;

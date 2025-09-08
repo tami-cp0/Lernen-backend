@@ -34,8 +34,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
     if (!user) throw new UnauthorizedException('Login required');
 
-    if (payload.provider === 'email') {
-      const emailAccount = user.authAccounts.find((account) => account.provider === 'email')
+    if (payload.provider === 'magic_link') {
+      const emailAccount = user.authAccounts.find((account) => account.provider === 'magic_link')
 
       if (emailAccount && !emailAccount.active) {
         throw new UnauthorizedException('Login required');

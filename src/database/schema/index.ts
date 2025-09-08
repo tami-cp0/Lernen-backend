@@ -1,5 +1,5 @@
 export * from './users';
-export * from './otp';
+export * from './token';
 export * from './authAccounts';
 export * from './chats';
 export * from './chatMessages';
