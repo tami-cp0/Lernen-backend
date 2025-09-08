@@ -22,7 +22,7 @@ export class EmailService {
   async sendEmail(
     emailType: 'sign_in',
     to: string,
-    variables: { tempToken?: string },
+    variables: { tempToken?: string }
   ) {
     let subject = '';
     let html = '';
@@ -31,7 +31,7 @@ export class EmailService {
       case 'sign_in':
         subject = MagicLinkEmailTemplate.subject;
         html = MagicLinkEmailTemplate.html
-          .replace('{{link}}', `${this.configService.get<AppConfigType>('app')?.onboardingUrl}?token=${variables.tempToken ?? ''}`);
+          .replace('{{link}}', `${this.configService.get<AppConfigType>('app')?.onboardingUrl}?token=${variables.tempToken ?? ''}&email=${to}`);
         break;
 
       default:
