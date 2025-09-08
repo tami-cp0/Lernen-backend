@@ -20,18 +20,18 @@ export class EmailService {
 
   // add queing support later
   async sendEmail(
-    emailType: 'magic_link',
+    emailType: 'sign_in',
     to: string,
-    variables: { authToken?: string },
+    variables: { tempToken?: string },
   ) {
     let subject = '';
     let html = '';
 
     switch (emailType) {
-      case 'magic_link':
+      case 'sign_in':
         subject = MagicLinkEmailTemplate.subject;
         html = MagicLinkEmailTemplate.html
-          .replace('{{link}}', `${this.configService.get<AppConfigType>('app')?.onboardingUrl}?token=${variables.authToken ?? ''}`);
+          .replace('{{link}}', `${this.configService.get<AppConfigType>('app')?.onboardingUrl}?token=${variables.tempToken ?? ''}`);
         break;
 
       default:

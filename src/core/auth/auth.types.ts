@@ -11,6 +11,7 @@ export type JwtPayload = {
   email: string;
   provider: AuthAccount['provider'];
   onboarded: boolean;
+  magicLink?: boolean;
   iat?: number;
   exp?: number;
 };

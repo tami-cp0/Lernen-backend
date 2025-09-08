@@ -9,8 +9,8 @@ export const roleEnum = pgEnum('role', ['user', 'admin']);
 export const users = pgTable('users', {
     id: uuid().defaultRandom().primaryKey(),
     email: varchar({ length: 254 }).notNull().unique(),
-    firstName: varchar('first_name', { length: 50 }).notNull(),
-    lastName: varchar('last_name', { length: 50 }).notNull(),
+    firstName: varchar('first_name', { length: 50 }),
+    lastName: varchar('last_name', { length: 50 }),
     educationLevel: varchar('education_level', { length: 100 }), // e.g., "High School", "Bachelor's", etc.
     preferences: text().array(),
     onboarded: boolean().default(false).notNull(),

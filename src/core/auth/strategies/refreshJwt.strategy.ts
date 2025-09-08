@@ -8,7 +8,6 @@ import { DatabaseService } from "src/database/database.service";
 import { users } from "src/database/schema";
 import { eq } from "drizzle-orm";
 
-// uses refresh secret
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'refresh') {
   constructor(
@@ -35,8 +34,8 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'refresh') {
     });
     if (!user) throw new UnauthorizedException('Login required');
 
-    if (payload.provider === 'magic_link') {
-      const emailAccount = user.authAccounts.find((account) => account.provider === 'magic_link')
+    if (payload.provider === 'email') {
+      const emailAccount = user.authAccounts.find((account) => account.provider === 'email')
 
       if (emailAccount && !emailAccount.active) {
         throw new UnauthorizedException('Login required');

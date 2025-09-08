@@ -28,7 +28,7 @@ export function ApiDefaultDocProtected() {
       schema: {
         type: 'object',
         properties: {
-          message: { type: 'string', example: 'Login required' },
+          message: { type: 'string', example: 'Sign in required' },
           error: { type: 'string', example: 'Unauthorized' },
           statusCode: { type: 'number', example: 401 },
         },

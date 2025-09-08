@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload) {
     if (!payload || !payload.sub) {
-        throw new UnauthorizedException('Login required');
+        throw new UnauthorizedException('Sign in required');
     }
 
     const user = await this.databaseService.db.query.users.findFirst({
@@ -32,13 +32,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         authAccounts: true
       }
     });
-    if (!user) throw new UnauthorizedException('Login required');
+    if (!user) throw new UnauthorizedException('Sign in required');
 
-    if (payload.provider === 'magic_link') {
-      const emailAccount = user.authAccounts.find((account) => account.provider === 'magic_link')
+    if (payload.provider === 'email') {
+      const emailAccount = user.authAccounts.find((account) => account.provider === 'email')
 
       if (emailAccount && !emailAccount.active) {
-        throw new UnauthorizedException('Login required');
+        throw new UnauthorizedException('Sign in required');
       }
 
       if (!emailAccount) throw new InternalServerErrorException('No email auth account')
@@ -46,7 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       const googleAccount = user.authAccounts.find((account) => account.provider === 'google')
 
       if (googleAccount && !googleAccount.active) {
-        throw new UnauthorizedException('Login required');
+        throw new UnauthorizedException('Sign in required');
       }
 
       if (!googleAccount) throw new InternalServerErrorException('No google auth account')
