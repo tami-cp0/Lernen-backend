@@ -202,8 +202,9 @@ export class AuthService {
 			if (error.name === 'TokenExpiredError') {
 				throw new BadRequestException('Link has expired');
 			}
+
 			console.error(error);
-			throw new InternalServerErrorException('Invalid or expired token');
+			throw error;
 		}
 	}
 
