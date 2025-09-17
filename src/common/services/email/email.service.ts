@@ -18,7 +18,7 @@ export class EmailService {
     });
   }
 
-  // add queing support later
+  // add queing and multi template support later
   async sendEmail(
     emailType: 'sign_in',
     to: string,
@@ -27,11 +27,21 @@ export class EmailService {
     let subject = '';
     let html = '';
 
+    const url = new URL(
+      this.configService.get<AppConfigType>('app')?.onboardingUrl ?? ''
+    );
+    url.search = new URLSearchParams({
+      token: variables.tempToken ?? '',
+      email: to,
+      provider: 'email',
+    }).toString();
+
+    const replaced = MagicLinkEmailTemplate.html.replace('{{link}}', url.toString());
+
     switch (emailType) {
       case 'sign_in':
         subject = MagicLinkEmailTemplate.subject;
-        html = MagicLinkEmailTemplate.html
-          .replace('{{link}}', `${this.configService.get<AppConfigType>('app')?.onboardingUrl}?token=${variables.tempToken ?? ''}&email=${to}`);
+        html = replaced;
         break;
 
       default:
