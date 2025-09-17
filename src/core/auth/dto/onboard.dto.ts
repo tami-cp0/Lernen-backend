@@ -1,5 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { IsIn } from "class-validator";
 import { IsEmail, IsNotEmpty, IsString } from "class-validator";
+import { AuthAccount } from "../auth.types";
 
 export class OnboardBodyDTO {
     @ApiProperty({ example: 'user@example.com', description: 'User email address' })
@@ -26,4 +28,12 @@ export class OnboardBodyDTO {
     @IsString({ each: true, message: 'Each preference must be a string' })
     @IsNotEmpty({ message: 'preferences cannot contain empty strings' })
     preferences: string[];
+}
+
+export class OnboardQueryDTO {
+  @ApiProperty({ example: 'email', enum: ['email','google'], description: 'Auth provider' })
+  @IsIn(['email', 'google'], { message: 'provider must be either email or google' })
+  @IsString({ message: 'provider must be a string' })
+  @IsNotEmpty({ message: 'provider is required and cannot be empty' })
+  provider: AuthAccount['provider'];
 }
