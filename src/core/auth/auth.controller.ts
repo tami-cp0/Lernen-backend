@@ -100,7 +100,8 @@ export class AuthController {
                             data: {
                                 onboarded: false,
                                 id: 'asasasa-550e-8400-e29b-41d4-a716-446655440000',
-                                provider: 'email'
+                                provider: 'email',
+                                names: { firstName: 'Ada', lastName: 'Lovelace' }
                             }
                         }
                     }
@@ -120,6 +121,10 @@ export class AuthController {
                     expired: {
                         summary: 'Expired token',
                         value: { statusCode: 400, message: 'Token has expired', error: 'Bad Request' }
+                    },
+                    consumed: {
+                        summary: 'Already used token',
+                        value: { statusCode: 400, message: 'Token already used', error: 'Bad Request' }
                     }
                 }
             }
@@ -127,7 +132,7 @@ export class AuthController {
     })
 	@ApiDefaultDocPublic()
 	@HttpCode(200)
-	@Post('/verify-token')
+	@Post('verify-token')
 	async verifyToken(@Body() body: VerifyBodyDTO) {
 		return await this.authService.verifyToken(body.token);
 	}
