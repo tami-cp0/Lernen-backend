@@ -4,10 +4,11 @@ import { IsEmail, IsNotEmpty, IsString } from "class-validator";
 import { AuthAccount } from "../auth.types";
 
 export class OnboardBodyDTO {
-    @ApiProperty({ example: 'user@example.com', description: 'User email address' })
-    @IsEmail({}, { message: 'email must be a valid email address' })
-    @IsNotEmpty({ message: 'email is required and cannot be empty' })
-    email: string;
+    
+    @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000', description: 'User ID' })
+    @IsString({ message: 'id must be a string' })
+    @IsNotEmpty({ message: 'id is required and cannot be empty' })
+    id: string;
 
     @ApiProperty({ example: 'John', description: 'First name', required: false })
     @IsString({ message: 'firstName must be a string' })
