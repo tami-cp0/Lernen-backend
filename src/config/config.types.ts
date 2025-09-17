@@ -1,5 +1,5 @@
 import { ConfigType } from "@nestjs/config";
-import { AppConfig, DatabaseConfig, ForgotPasswordJwtConfig, GmailConfig, JwtConfig, OpenAIConfig, RefreshJwtConfig } from "./config";
+import { AppConfig, DatabaseConfig, ForgotPasswordJwtConfig, GmailConfig, GoogleConfig, JwtConfig, OpenAIConfig, RefreshJwtConfig } from "./config";
 import { Config } from "drizzle-kit";
 
 export enum Environment {
@@ -22,3 +22,5 @@ export type ForgotPasswordJwtConfigType = ConfigType<typeof ForgotPasswordJwtCon
 export type GmailConfigType = ConfigType<typeof GmailConfig>
 
 export type OpenAIConfigType = ConfigType<typeof OpenAIConfig>;
+
+export type GoogleConfigType = ConfigType<typeof GoogleConfig>;

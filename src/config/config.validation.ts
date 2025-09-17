@@ -22,6 +22,19 @@ class EnvironmentVariables {
   @IsNotEmpty({ message: 'ONBOARDING_URL is required and cannot be empty' })
   ONBOARDING_URL: string;
 
+  // GOOGLE
+  @IsString({ message: 'GOOGLE_REDIRECT_URL must be a string' })
+  @IsNotEmpty({ message: 'GOOGLE_REDIRECT_URL is required and cannot be empty' })
+  GOOGLE_REDIRECT_URL: string;
+
+  @IsString({ message: 'GOOGLE_CLIENT_ID must be a string' })
+  @IsNotEmpty({ message: 'GOOGLE_CLIENT_ID is required and cannot be empty' })
+  GOOGLE_CLIENT_ID: string;
+
+  @IsString({ message: 'GOOGLE_CLIENT_SECRET must be a string' })
+  @IsNotEmpty({ message: 'GOOGLE_CLIENT_SECRET is required and cannot be empty' })
+  GOOGLE_CLIENT_SECRET: string;
+
   // DB
   @IsString({ message: 'DATABASE_URL must be a string' })
   @IsNotEmpty({ message: 'DATABASE_URL is required and cannot be empty' })

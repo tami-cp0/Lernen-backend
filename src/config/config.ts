@@ -59,6 +59,15 @@ export const OpenAIConfig = registerAs(
     })
 )
 
+export const GoogleConfig = registerAs(
+    'google',
+    () => ({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        redirectUrl: process.env.GOOGLE_REDIRECT_URL,
+    })
+)
+
 export const configurations = [
     AppConfig,  
     DatabaseConfig,
@@ -66,5 +75,6 @@ export const configurations = [
     GmailConfig,
     OpenAIConfig,
     RefreshJwtConfig,
-    ForgotPasswordJwtConfig
+    ForgotPasswordJwtConfig,
+    GoogleConfig
 ];
