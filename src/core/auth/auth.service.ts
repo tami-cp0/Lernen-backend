@@ -178,7 +178,7 @@ export class AuthService {
 			if (!user.onboarded) {
 				return {
 					message: 'User not onboarded',
-					data: { onboarded: false, email: user.email, provider: payload.provider },
+					data: { onboarded: false, id: user.id, provider: payload.provider },
 				};
 			}
 
