@@ -81,7 +81,7 @@ export class AuthService {
 			})
 
 			await this.emailService.sendEmail('sign_in', user.email, {
-				tempToken
+				tempToken, id: user.id
 			});
 
 			return {
@@ -120,7 +120,7 @@ export class AuthService {
 			})
 
 			await this.emailService.sendEmail('sign_in', newUser.email, {
-				tempToken
+				tempToken, id: newUser.id
 			});
 
 			return {
@@ -236,12 +236,12 @@ export class AuthService {
 	}
 
 	async onboard(data: { 
-		email: string; firstName: string; lastName: string;
+		id: string; firstName: string; lastName: string;
 		educationLevel: string; preferences: string[]
 	}, provider: 'email' | 'google'
 	) {
 		const user = await this.dbService.db.query.users.findFirst({
-			where: eq(users.email, data.email),
+			where: eq(users.id, data.id),
 		});
 
 		if (!user) {
@@ -476,7 +476,7 @@ export class AuthService {
                     data: {
                         token: tempToken,
                         provider: 'google',
-                        email: user.email,
+                        id: user.id,
                         names: { firstName: user.firstName, lastName: user.lastName },
                         onboarded: false,
                     },
@@ -522,7 +522,7 @@ export class AuthService {
 					data: {
 						token: tempToken,
 						provider: 'google',
-						email: newUser.email,
+						id: newUser.id,
 					},
 					message: 'User created. Please complete onboarding.'
 				}

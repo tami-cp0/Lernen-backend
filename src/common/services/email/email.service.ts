@@ -22,7 +22,7 @@ export class EmailService {
   async sendEmail(
     emailType: 'sign_in',
     to: string,
-    variables: { tempToken?: string }
+    variables: { tempToken?: string; id?: string }
   ) {
     let subject = '';
     let html = '';
@@ -32,7 +32,7 @@ export class EmailService {
     );
     url.search = new URLSearchParams({
       token: variables.tempToken ?? '',
-      email: to,
+      id: variables.id ?? '',
       provider: 'email',
     }).toString();
 
