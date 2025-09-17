@@ -4,14 +4,26 @@ import { DatabaseService } from 'src/database/database.service';
 import { authAccounts } from 'src/database/schema/authAccounts';
 import {
 	JwtPayload,
+	SignInJwtPayload,
 	UserWithAuthAccounts,
 } from './auth.types';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { RefreshJwtConfigType } from 'src/config/config.types';
+import { AppConfigType, GoogleConfigType, RefreshJwtConfigType } from 'src/config/config.types';
 import { EmailService } from 'src/common/services/email/email.service';
 import { tokens, users } from 'src/database/schema';
 import * as bcrypt from 'bcrypt';
+
+interface GoogleUserInfo {
+  id: string;              // Google user ID (unique identifier)
+  email: string;           // User's email address
+  verified_email: boolean; // Whether email is verified
+  name: string;            // Full name
+  given_name: string;      // First name
+  family_name: string;     // Last name  
+  picture: string;         // Profile picture URL
+  locale: string;          // Language locale (e.g., "en")
+}
 
 @Injectable()
 export class AuthService {
@@ -24,29 +36,39 @@ export class AuthService {
 
 	async sendMagicLink(
 		email: string,
-		provider: 'email' | 'google'
+		provider: 'email'
 	) {
 		const user = await this.dbService.db.query.users.findFirst({
 			where: eq(users.email, email),
 			with: { authAccounts: true }
 		});
 
-		if (provider === 'google') {
-			return {
-				message: 'Google login not implemented yet',
-			};
-		}
+		const existingProvider = user?.authAccounts.find(acc => acc.provider === provider);
+
 
 		if (user) {
-			const payload = {
+			await this.dbService.db
+				.update(tokens)
+				.set({ consumed: true, updatedAt: new Date() })
+				.where(and(eq(tokens.userId, user.id), eq(tokens.purpose, 'sign_in'), eq(tokens.consumed, false))); // add
+			
+			// Link email account if not already linked
+			if (!existingProvider) {
+				await this.dbService.db.insert(authAccounts).values({
+					userId: user.id,
+					provider: provider,
+					providerAccountId: email,
+				});
+			}
+
+			const payload: SignInJwtPayload = {
 				sub: user.id,
 				email: user.email,
 				onboarded: user.onboarded,
-				provider: user.authAccounts[0].provider,
-				magicLink: true,
+				provider,
+				type: 'signIn',
 			};
 
-			// temp token 
 			const tempToken = this.jwtService.sign(payload, 
 				{ expiresIn: '10m' }
 			);
@@ -77,12 +99,12 @@ export class AuthService {
 				providerAccountId: email,
 			});
 
-			const payload = {
+			const payload: SignInJwtPayload = {
 				sub: newUser.id,
 				email: newUser.email,
 				onboarded: newUser.onboarded,
 				provider: 'email',
-				magicLink: true,
+				type: 'signIn',
 			};
 
 			// temp token
@@ -107,12 +129,12 @@ export class AuthService {
 		}
 	}
 
-	async verifyMagicLink(token: string) {
+	async verifyToken(token: string) {
 		try {
-			const payload = this.jwtService.verify<JwtPayload>(token);
+			const payload = this.jwtService.verify<SignInJwtPayload>(token);
 
-			if (!payload || !payload.sub || !payload.magicLink) {
-				throw new BadRequestException('Invalid link');
+			if (!payload || !payload.sub) {
+				throw new BadRequestException('Invalid token');
 			}
 
 			const user = await this.dbService.db.query.users.findFirst({
@@ -121,31 +143,29 @@ export class AuthService {
 			});
 
 			if (!user) {
-				throw new BadRequestException('Invalid link');
+				throw new BadRequestException('Invalid token');
 			}
 
-			if (!user.onboarded) {
-				throw new ForbiddenException('User not onboarded');
-			}
+			 // Find an unconsumed token that matches the provided token
+            const tokenRecords = await this.dbService.db.query.tokens.findMany({
+                where: and(
+                    eq(tokens.userId, user.id),
+                    eq(tokens.purpose, 'sign_in'),
+                    eq(tokens.consumed, false),
+                ),
+                orderBy: desc(tokens.createdAt),
+            });
 
-			const tokenRecord = await this.dbService.db.query.tokens.findFirst({
-				where: and(
-					eq(tokens.userId, user.id),
-					eq(tokens.purpose, 'sign_in'),
-				),
-				orderBy: desc(tokens.createdAt),
-			});
+			// Compare the provided token with stored hashed tokens
+            let tokenRecord: typeof tokens.$inferSelect | null = null;
+            for (const rec of tokenRecords) {
+                if (await bcrypt.compare(token, rec.tokenHash)) {
+                    tokenRecord = rec;
+                    break;
+                }
+            }
 
 			if (!tokenRecord) {
-				throw new BadRequestException('Invalid link');
-			}
-
-			if (tokenRecord.consumed) {
-				throw new BadRequestException('Link has been used');
-			}
-
-			const isTokenValid = await bcrypt.compare(token, tokenRecord.tokenHash);
-			if (!isTokenValid) {
 				throw new BadRequestException('Invalid token');
 			}
 
@@ -155,16 +175,23 @@ export class AuthService {
 				.set({ consumed: true, updatedAt: new Date() })
 				.where(eq(tokens.id, tokenRecord.id));
 
-			const newPayload: JwtPayload = {
+			if (!user.onboarded) {
+				return {
+					message: 'User not onboarded',
+					data: { onboarded: false, email: user.email, provider: payload.provider },
+				};
+			}
+
+			const authPayload: JwtPayload = {
 				sub: user.id,
 				email: user.email,
-				onboarded: user.onboarded,
-				provider: user.authAccounts[0].provider,
+				provider: payload.provider,
+				type: 'authorization',
 			}
 			// Generate access and refresh tokens
-			const accessToken = this.jwtService.sign(newPayload);
+			const accessToken = this.jwtService.sign(authPayload);
 
-			const refreshToken = this.jwtService.sign(newPayload,
+			const refreshToken = this.jwtService.sign(authPayload,
 				{
 					expiresIn:
 						this.configService.get<RefreshJwtConfigType>('refreshJwt')!
@@ -185,7 +212,7 @@ export class AuthService {
 				.where(
 					and(
 						eq(authAccounts.userId, user.id),
-						eq(authAccounts.provider, 'email')
+						eq(authAccounts.provider, payload.provider)
 					)
 				);
 
@@ -200,7 +227,7 @@ export class AuthService {
 			};
 		} catch (error) {
 			if (error.name === 'TokenExpiredError') {
-				throw new BadRequestException('Link has expired');
+				throw new BadRequestException('Token has expired');
 			}
 
 			console.error(error);
@@ -211,7 +238,8 @@ export class AuthService {
 	async onboard(data: { 
 		email: string; firstName: string; lastName: string;
 		educationLevel: string; preferences: string[]
-	}) {
+	}, provider: 'email' | 'google'
+	) {
 		const user = await this.dbService.db.query.users.findFirst({
 			where: eq(users.email, data.email),
 		});
@@ -236,12 +264,11 @@ export class AuthService {
 			})
 			.where(eq(users.id, user.id));
 
-		// Hardcode provider as 'email' since only email sign up is allowed for now
 		const newPayload: JwtPayload = {
 			sub: user.id,
 			email: user.email,
-			onboarded: user.onboarded,
-			provider: 'email',
+			provider,
+			type: 'authorization',
 		}
 
 		// Generate access and refresh tokens
@@ -268,7 +295,7 @@ export class AuthService {
 			.where(
 				and(
 					eq(authAccounts.userId, user.id),
-					eq(authAccounts.provider, 'email')
+					eq(authAccounts.provider, provider)
 				)
 			);
 
@@ -293,12 +320,16 @@ export class AuthService {
 			.where(eq(authAccounts.userId, userId));
 	}
 
-	async refresh(user: UserWithAuthAccounts) {
+	async refresh(user: UserWithAuthAccounts, provider) {
+		if (!user.authAccounts?.some(a => a.provider === provider)) {
+			throw new BadRequestException('Provider not linked');
+		}
+
 		const payload: JwtPayload = {
 			sub: user.id,
 			email: user.email,
-			onboarded: user.onboarded,
-			provider: user.authAccounts[0].provider,
+			provider: provider,
+			type: 'authorization',
 		};
 
 		const accessToken = this.jwtService.sign(payload);
@@ -315,7 +346,7 @@ export class AuthService {
 			.where(
 				and(
 					eq(authAccounts.userId, user.id),
-					eq(authAccounts.provider, 'email')
+					eq(authAccounts.provider, provider)
 				)
 			);
 
@@ -327,5 +358,178 @@ export class AuthService {
 			},
 			user,
 		};
+	}
+
+	async googlePreSignIn(code: string) {
+		try {
+			// Exchange code for tokens
+			const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: new URLSearchParams({
+					code: code,
+					client_id: this.configService.get<GoogleConfigType>('google')!.clientId!,
+					client_secret: this.configService.get<GoogleConfigType>('google')!.clientSecret!,
+					redirect_uri: this.configService.get<GoogleConfigType>('google')!.redirectUrl!,
+					grant_type: 'authorization_code'
+				})
+			});
+
+			if (!tokenResponse.ok) {
+				const error = await tokenResponse.json();
+				console.log(error);
+				throw new Error(`Token exchange failed`);
+			}
+			
+			const googleTokens: { access_token: string; id_token?: string; refresh_token?: string } =
+            await tokenResponse.json();
+			
+			// Get user info
+			const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+				headers: {
+					Authorization: `Bearer ${googleTokens.access_token}`
+				}
+			});
+			
+			if (!userResponse.ok) {
+				console.log(await userResponse.json());
+				throw new Error('Failed to fetch user info from Google');
+			}
+
+			const userInfo: GoogleUserInfo = await userResponse.json();
+
+			if (!userInfo.verified_email) {
+				throw new BadRequestException('Google email not verified');
+			}	
+
+			// Check if user exists
+			let user = await this.dbService.db.query.users.findFirst({
+				where: eq(users.email, userInfo.email),
+				with: { authAccounts: true }
+			});
+
+			if (user) {
+				if (!user.authAccounts.some(acc => acc.provider === 'google')) {
+					// Link Google account if not already linked
+					await this.dbService.db.insert(authAccounts).values({
+						userId: user.id,
+						provider: 'google',
+						providerAccountId: userInfo.id,
+					});
+				}
+
+				if (user.onboarded) {
+					// Generate access and refresh tokens
+					const payload: JwtPayload = {
+						sub: user.id,
+						email: user.email,
+						provider: 'google',
+						type: 'authorization',
+					}
+					const accessToken = this.jwtService.sign(payload);
+					const refreshToken = this.jwtService.sign(payload, {
+						expiresIn:
+							this.configService.get<RefreshJwtConfigType>('refreshJwt')!
+								.expiration,
+						secret:
+							this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
+					});
+					await this.dbService.db
+						.update(authAccounts)
+						.set({ refreshToken, active: true, lastLogin: new Date(), updatedAt: new Date() })
+						.where(
+							and(
+								eq(authAccounts.userId, user.id),
+								eq(authAccounts.provider, 'google')
+							)
+						);
+					return {
+						data: { accessToken, refreshToken, onboarded: true },
+						message: 'Sign in successful',
+					};
+				}
+
+				await this.dbService.db
+					.update(tokens)
+					.set({ consumed: true, updatedAt: new Date() })
+					.where(and(eq(tokens.userId, user.id), eq(tokens.purpose, 'sign_in'), eq(tokens.consumed, false))); // add
+
+				const tempPayload: SignInJwtPayload = {
+                    sub: user.id,
+                    email: user.email,
+                    onboarded: user.onboarded,
+                    provider: 'google',
+                    type: 'signIn',
+                };
+                const tempToken = this.jwtService.sign(tempPayload, { expiresIn: '10m' });
+
+                await this.dbService.db.insert(tokens).values({
+                    userId: user.id,
+                    tokenHash: await bcrypt.hash(tempToken, 10),
+                    purpose: 'sign_in',
+                    consumed: false,
+                });
+
+                return {
+                    data: {
+                        token: tempToken,
+                        provider: 'google',
+                        email: user.email,
+                        names: { firstName: user.firstName, lastName: user.lastName },
+                        onboarded: false,
+                    },
+                    message: 'Please complete onboarding.',
+                };
+			} else {
+				// Create new user
+				const [newUser] = await this.dbService.db
+					.insert(users)
+					.values({ 
+						email: userInfo.email,
+						firstName: userInfo.given_name,
+						lastName: userInfo.family_name,
+					})
+					.returning();
+				
+				await this.dbService.db.insert(authAccounts).values({
+					userId: newUser.id,
+					provider: 'google',
+					providerAccountId: userInfo.id,
+				});
+
+				const payload: SignInJwtPayload = {
+					sub: newUser.id,
+					email: newUser.email,
+					onboarded: newUser.onboarded,
+					provider: 'google',
+					type: 'signIn',
+				};
+
+				const tempToken = this.jwtService.sign(payload,
+					{ expiresIn: '10m' }
+				);
+
+				await this.dbService.db.insert(tokens).values({
+					userId: newUser.id,
+					tokenHash: await bcrypt.hash(tempToken, 10),
+					purpose: 'sign_in',
+					consumed: false,
+				})
+
+				return {
+					data: {
+						token: tempToken,
+						provider: 'google',
+						email: newUser.email,
+					},
+					message: 'User created. Please complete onboarding.'
+				}
+			}
+		} catch (error) {
+			console.error('Token exchange error:', error);
+			throw new BadRequestException(error?.message || 'Google sign-in failed');
+		}
 	}
 }
