@@ -3,7 +3,7 @@ import { users } from "./users";
 import { relations } from "drizzle-orm";
 
 export const purposeEnum = pgEnum('token_purpose', [
-    'sign_in',
+    'sign_in', // for temporary tokens
 ]);
 
 export const tokens = pgTable('tokens', {
