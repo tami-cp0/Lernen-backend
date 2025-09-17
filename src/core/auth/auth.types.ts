@@ -10,8 +10,17 @@ export type JwtPayload = {
   sub: string;
   email: string;
   provider: AuthAccount['provider'];
-  onboarded: boolean;
-  magicLink?: boolean;
+  type: 'authorization';
   iat?: number;
   exp?: number;
 };
+
+export type SignInJwtPayload = {
+  sub: string;
+  email: string;
+  provider: AuthAccount['provider'];
+  onboarded: boolean;
+  type: 'signIn';
+  iat?: number;
+  exp?: number;
+}
