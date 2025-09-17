@@ -218,7 +218,7 @@ export class AuthController {
                             data: {
                                 token: 'temp-sign-in-token',
                                 provider: 'google',
-                                email: 'user@example.com',
+                                id: '550e8400-e29b-41d4-a716-446655440000',
                                 names: { firstName: 'Ada', lastName: 'Lovelace' },
                                 onboarded: false,
                             },
