@@ -71,52 +71,59 @@ export class AuthController {
     @ApiOperation({
         summary: 'Verify temporary sign-in token',
         description: `
-            Verifies a short-lived sign-in token and returns auth tokens if valid.
-            Sources:
-            - Email magic link (provider: email)
-            - Google pre-sign-in flow (provider: google)
-            Notes:
-            - Token is single-use and is consumed on success.
-            - Non-onboarded users will receive 403 and should complete onboarding (/auth/onboard).
+            Verifies a short-lived sign-in token issued via email magic link or Google pre-sign-in.
+            Behaviour:
+            - Token is single-use and is consumed whether or not the user is onboarded.
+            - If the user is onboarded: returns access & refresh tokens.
+            - If not onboarded: returns 200 with onboarding status (no auth tokens) so the client can proceed to /auth/onboard.
         `,
     })
     @ApiOkResponse({
-        description: 'Sign in successful',
-        schema: {
-            type: 'object',
-            properties: {
-                message: { type: 'string', example: 'Sign in successful' },
-                data: {
-                    type: 'object',
-                    properties: {
-                        accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-                        refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+        description: 'Token verified',
+        content: {
+            'application/json': {
+                examples: {
+                    onboarded: {
+                        summary: 'Onboarded user',
+                        value: {
+                            message: 'Sign in successful',
+                            data: {
+                                accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                                refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                            }
+                        }
                     },
-                },
-            },
-        },
+                    notOnboarded: {
+                        summary: 'User not onboarded',
+                        value: {
+                            message: 'User not onboarded',
+                            data: {
+                                onboarded: false,
+                                id: 'asasasa-550e-8400-e29b-41d4-a716-446655440000',
+                                provider: 'email'
+                            }
+                        }
+                    }
+                }
+            }
+        }
     })
     @ApiBadRequestResponse({
         description: 'Invalid, expired, or already-used token',
-        schema: {
-            type: 'object',
-            properties: {
-                statusCode: { type: 'number', example: 400 },
-                message: { type: 'string', example: 'Invalid token' }, // or 'Token has expired' / 'Temporary token has been used'
-                error: { type: 'string', example: 'Bad Request' },
-            },
-        },
-    })
-    @ApiForbiddenResponse({
-        description: 'User not onboarded',
-        schema: {
-            type: 'object',
-            properties: {
-                statusCode: { type: 'number', example: 403 },
-                message: { type: 'string', example: 'User not onboarded' },
-                error: { type: 'string', example: 'Forbidden' },
-            },
-        },
+        content: {
+            'application/json': {
+                examples: {
+                    invalid: {
+                        summary: 'Invalid token',
+                        value: { statusCode: 400, message: 'Invalid token', error: 'Bad Request' }
+                    },
+                    expired: {
+                        summary: 'Expired token',
+                        value: { statusCode: 400, message: 'Token has expired', error: 'Bad Request' }
+                    }
+                }
+            }
+        }
     })
 	@ApiDefaultDocPublic()
 	@HttpCode(200)
