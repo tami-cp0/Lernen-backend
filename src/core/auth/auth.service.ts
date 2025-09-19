@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { and, eq, desc } from 'drizzle-orm';
 import { DatabaseService } from 'src/database/database.service';
 import { authAccounts } from 'src/database/schema/authAccounts';
@@ -7,7 +7,7 @@ import {
 	SignInJwtPayload,
 	UserWithAuthAccounts,
 } from './auth.types';
-import { JwtService } from '@nestjs/jwt';
+import { JsonWebTokenError, JwtService, NotBeforeError, TokenExpiredError } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AppConfigType, GoogleConfigType, RefreshJwtConfigType } from 'src/config/config.types';
 import { EmailService } from 'src/common/services/email/email.service';
@@ -169,21 +169,22 @@ export class AuthService {
 				throw new BadRequestException('Invalid token');
 			}
 
-			// Mark the token as consumed
-			await this.dbService.db
-				.update(tokens)
-				.set({ consumed: true, updatedAt: new Date() })
-				.where(eq(tokens.id, tokenRecord.id));
-
 			if (!user.onboarded) {
 				return {
 					message: 'User not onboarded',
 					data: {
 						onboarded: false, id: user.id, provider: payload.provider,
-						names: { firstName: user.firstName, lastName: user.lastName }
+						names: { firstName: user.firstName, lastName: user.lastName },
+						token
 					},
 				};
 			}
+
+			// Mark the token as consumed if the user is onboarded
+			await this.dbService.db
+				.update(tokens)
+				.set({ consumed: true, updatedAt: new Date() })
+				.where(eq(tokens.id, tokenRecord.id));
 
 			const authPayload: JwtPayload = {
 				sub: user.id,
@@ -228,21 +229,59 @@ export class AuthService {
 					refreshToken,
 				},
 			};
-		} catch (error) {
-			if (error.name === 'TokenExpiredError') {
-				throw new BadRequestException('Token has expired');
+		} catch (err) {
+			console.log("Error verifying token:", err);
+			if (err instanceof TokenExpiredError) {
+				throw new UnauthorizedException('Token has expired');
+			} else if (err instanceof NotBeforeError) {
+				throw new UnauthorizedException('Token not active yet');
+			} else if (err instanceof JsonWebTokenError) {
+				// invalid JWT (e.g. invalid signature, malformed)
+				throw new UnauthorizedException('Invalid token');
+			} else if (err instanceof SyntaxError) {
+				// malformed JWT (e.g. corrupted, truncated, bad JSON payload)
+				throw new BadRequestException('Malformed token');
+			} else {
+				throw new UnauthorizedException('Token verification failed');
 			}
-
-			console.error(error);
-			throw error;
 		}
 	}
 
 	async onboard(data: { 
-		id: string; firstName: string; lastName: string;
+		id: string; firstName: string; lastName: string; token: string;
 		educationLevel: string; preferences: string[]
 	}, provider: 'email' | 'google'
 	) {
+		
+ 		// Find an unconsumed token that matches the provided token
+        const tokenRecords = await this.dbService.db.query.tokens.findMany({
+            where: and(
+                eq(tokens.userId, data.id),
+                eq(tokens.purpose, 'sign_in'),
+                eq(tokens.consumed, false),
+            ),
+            orderBy: desc(tokens.createdAt),
+        });
+
+		// Compare the provided token with stored hashed tokens
+        let tokenRecord: typeof tokens.$inferSelect | null = null;
+        for (const rec of tokenRecords) {
+            if (await bcrypt.compare(data.token, rec.tokenHash)) {
+                tokenRecord = rec;
+                break;
+            }            }
+
+		if (!tokenRecord) {
+			console.log(3)
+			throw new BadRequestException('Invalid token');
+		}
+
+		// Mark the token as consumed
+		await this.dbService.db
+			.update(tokens)
+			.set({ consumed: true, updatedAt: new Date() })
+			.where(eq(tokens.id, tokenRecord.id));
+
 		const user = await this.dbService.db.query.users.findFirst({
 			where: eq(users.id, data.id),
 		});
@@ -375,7 +414,7 @@ export class AuthService {
 					code: code,
 					client_id: this.configService.get<GoogleConfigType>('google')!.clientId!,
 					client_secret: this.configService.get<GoogleConfigType>('google')!.clientSecret!,
-					redirect_uri: this.configService.get<GoogleConfigType>('google')!.redirectUrl!,
+					redirect_uri: 'postmessage',
 					grant_type: 'authorization_code'
 				})
 			});
