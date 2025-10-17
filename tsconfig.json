@@ -11,10 +11,10 @@
     "strictNullChecks": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "baseUrl": "./",
     "skipLibCheck": true,
-    "incremental": true,
+    "incremental": true
   },
   "include": ["src/**/*"],
   "exclude": [
