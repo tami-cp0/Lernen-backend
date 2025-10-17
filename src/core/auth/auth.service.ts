@@ -198,8 +198,8 @@ export class AuthService {
 			const refreshToken = this.jwtService.sign(authPayload,
 				{
 					expiresIn:
-						this.configService.get<RefreshJwtConfigType>('refreshJwt')!
-							.expiration,
+						Number(this.configService.get<RefreshJwtConfigType>('refreshJwt')!
+							.expiration),
 					secret:
 						this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
 				}
@@ -319,8 +319,8 @@ export class AuthService {
 		const refreshToken = this.jwtService.sign(newPayload,
 			{
 				expiresIn:
-					this.configService.get<RefreshJwtConfigType>('refreshJwt')!
-						.expiration,
+					Number(this.configService.get<RefreshJwtConfigType>('refreshJwt')!
+						.expiration),
 				secret:
 					this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
 			}
@@ -377,7 +377,7 @@ export class AuthService {
 		const accessToken = this.jwtService.sign(payload);
 		const refreshToken = this.jwtService.sign(payload, {
 			expiresIn:
-				this.configService.get<RefreshJwtConfigType>('refreshJwt')!.expiration,
+				Number(this.configService.get<RefreshJwtConfigType>('refreshJwt')!.expiration),
 			secret:
 				this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
 		});
@@ -473,8 +473,8 @@ export class AuthService {
 					const accessToken = this.jwtService.sign(payload);
 					const refreshToken = this.jwtService.sign(payload, {
 						expiresIn:
-							this.configService.get<RefreshJwtConfigType>('refreshJwt')!
-								.expiration,
+							Number(this.configService.get<RefreshJwtConfigType>('refreshJwt')!
+								.expiration),
 						secret:
 							this.configService.get<RefreshJwtConfigType>('refreshJwt')!.secret,
 					});
