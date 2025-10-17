@@ -7,7 +7,7 @@ import ChatIdParamDTO from './dto/chatid.dto';
 import RemoveDocBodyDTO from './dto/removeDoc.dto';
 import SendMessageBodyDTO from './dto/sendMessage.dto';
 import { UploadDocBodyDTO, UploadDocumentResponseDTO } from './dto/upload.dto';
-import { MulterExceptionFilter } from 'src/common/filters/multer.filter';
+import { MulterExceptionFilter } from '../../common/filters/multer.filter';
 import { ApiBadRequestResponse, ApiBody, ApiConsumes, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiPayloadTooLargeResponse, getSchemaPath } from '@nestjs/swagger';
 import { ApiDefaultDocProtected } from 'src/swagger';
 import { GetChatResponseDTO, GetChatsResponseDTO, SendMessageResponseDTO } from './dto/chatResponses.dto';
