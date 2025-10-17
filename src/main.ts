@@ -49,8 +49,9 @@ async function bootstrap() {
 
   app.use(helmet());
 
-  await app.listen(config.get<AppConfigType>('app')!.port);
+  const port = config.get<AppConfigType>('app')!.port || 3000;
+  await app.listen(port);
 
-  Logger.log('Application is running on: http://localhost:3000');  
+  Logger.log(`Application is running on: http://localhost:${port}/api/v1`);  
 }
 bootstrap();
