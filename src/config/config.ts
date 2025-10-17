@@ -68,6 +68,15 @@ export const GoogleConfig = registerAs(
     })
 )
 
+export const ChromaConfig = registerAs(
+    'chroma',
+    () => ({
+        apiKey: process.env.CHROMA_API_KEY,
+        tenant: process.env.CHROMA_TENANT,
+        database: process.env.CHROMA_DATABASE,
+    })
+)
+
 export const configurations = [
     AppConfig,  
     DatabaseConfig,
@@ -76,5 +85,6 @@ export const configurations = [
     OpenAIConfig,
     RefreshJwtConfig,
     ForgotPasswordJwtConfig,
-    GoogleConfig
+    GoogleConfig,
+    ChromaConfig,
 ];

@@ -45,9 +45,9 @@ class EnvironmentVariables {
   @IsNotEmpty({ message: 'FORGOT_PASSWORD_JWT_SECRET is required and cannot be empty' })
   FORGOT_PASSWORD_JWT_SECRET: string;
 
-  @IsString({ message: 'FORGOT_PASSWORD_JWT_EXPIRATION must be a string' })
+  @IsNumberString({}, { message: 'FORGOT_PASSWORD_JWT_EXPIRATION must be a numeric string' })
   @IsNotEmpty({ message: 'FORGOT_PASSWORD_JWT_EXPIRATION is required and cannot be empty' })
-  FORGOT_PASSWORD_JWT_EXPIRATION: string;
+  FORGOT_PASSWORD_JWT_EXPIRATION: number;
 
   @IsString({ message: 'FORGOT_PASSWORD_FRONTEND_REDIRECT_URL must be a string' })
   @IsNotEmpty({ message: 'FORGOT_PASSWORD_FRONTEND_REDIRECT_URL is required and cannot be empty' })
@@ -62,17 +62,17 @@ class EnvironmentVariables {
   // BACKEND_URL: string;
 
   // JWT
-  @IsString({ message: 'REFRESH_JWT_EXPIRATION must be a string'})
+  @IsNumberString({}, { message: 'REFRESH_JWT_EXPIRATION must be a numeric string'})
   @IsNotEmpty({ message: 'REFRESH_JWT_EXPIRATION is required and cannot be empty'})
-  REFRESH_JWT_EXPIRATION: string
+  REFRESH_JWT_EXPIRATION: number;
 
   @IsString({ message: 'REFRESH_JWT_SECRET must be a string'})
   @IsNotEmpty({ message: 'REFRESH_JWT_SECRET is required and cannot be empty'})
   REFRESH_JWT_SECRET: string;
 
-  @IsString({ message: 'JWT_EXPIRATION must be a string'})
+  @IsNumberString({}, { message: 'JWT_EXPIRATION must be a numeric string'})
   @IsNotEmpty({ message: 'JWT_EXPIRATION is required and cannot be empty'})
-  JWT_EXPIRATION: string
+  JWT_EXPIRATION: number
 
   @IsString({ message: 'JWT_SECRET must be a string'})
   @IsNotEmpty({ message: 'JWT_SECRET is required and cannot be empty'})
@@ -95,6 +95,19 @@ class EnvironmentVariables {
   @IsString({ message: 'OPENAI_API_VECTOR_STORE_ID must be a string' })
   @IsNotEmpty({ message: 'OPENAI_API_VECTOR_STORE_ID is required and cannot be empty' })
   OPENAI_API_VECTOR_STORE_ID: string;
+  
+  // CHROMA
+  @IsString({ message: 'CHROMA_API_KEY must be a string' })
+  @IsNotEmpty({ message: 'CHROMA_API_KEY is required and cannot be empty' })
+  CHROMA_API_KEY: string;
+
+  @IsString({ message: 'CHROMA_TENANT must be a string' })
+  @IsNotEmpty({ message: 'CHROMA_TENANT is required and cannot be empty' })
+  CHROMA_TENANT: string;
+
+  @IsString({ message: 'CHROMA_DATABASE must be a string' })
+  @IsNotEmpty({ message: 'CHROMA_DATABASE is required and cannot be empty' })
+  CHROMA_DATABASE: string;
 }
 
 
