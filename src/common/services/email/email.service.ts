@@ -11,6 +11,8 @@ export class EmailService {
   constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
+      port: 465,
+      secure: true,
       auth: {
         user: this.configService.get<GmailConfigType>('gmail')!.user,
         pass: this.configService.get<GmailConfigType>('gmail')!.pass,
@@ -49,7 +51,7 @@ export class EmailService {
     }
 
     await this.transporter.sendMail({
-      from: `"Lernen" <${this.configService.get<GmailConfigType>('gmail')!.user}>`,
+      from: this.configService.get<GmailConfigType>('gmail')!.user,
       to,
       subject,
       html,
