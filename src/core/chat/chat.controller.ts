@@ -100,7 +100,7 @@ export class ChatController {
         @Body() body: UploadDocBodyDTO,
         @Req() req: Request
     ) {
-        return await this.chatService.uploadDocument(files, param.chatId!, req!.user!.id, body.message);
+        return await this.chatService.uploadDocumentNonApi(files, param.chatId!, req!.user!.id, body.message);
     }
 
     @ApiOperation({
@@ -140,7 +140,7 @@ export class ChatController {
         @Body() body: RemoveDocBodyDTO,
         @Req() req: Request
     ) {
-        return await this.chatService.removeDocument(param.chatId!, body.documentId, req.user!.id);
+        // return await this.chatService.removeDocument(param.chatId!, body.documentId, req.user!.id);
     }
 
     @ApiOperation({
@@ -293,6 +293,6 @@ export class ChatController {
         @Body() body: SendMessageBodyDTO,
         @Req() req: Request
     ) {
-        return await this.chatService.sendMessage(param.chatId, body.message, req.user!.id);
+        return await this.chatService.sendMessageNonApi(param.chatId, body.message, req.user!.id, body.selectedDocumentIds);
     }
 }
