@@ -13,8 +13,7 @@ import { ChromaConfigType, OpenAIConfigType } from 'src/config/config.types';
 import { and, desc, eq } from 'drizzle-orm';
 import { chatMessages, chats } from 'src/database/schema';
 
-// chroma
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { CloudClient } from 'chromadb';
 
