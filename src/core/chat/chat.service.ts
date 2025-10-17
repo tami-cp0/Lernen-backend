@@ -14,7 +14,6 @@ import { and, desc, eq } from 'drizzle-orm';
 import { chatMessages, chats } from 'src/database/schema';
 
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { CloudClient } from 'chromadb';
 
 /**
@@ -195,6 +194,11 @@ export class ChatService {
 
 			try {
 				// Step 1: Extract text from PDF using pdfjs-dist (page-by-page)
+				// Dynamic import for ES module
+				const pdfjsLib = await import(
+					'pdfjs-dist/legacy/build/pdf.mjs'
+				);
+
 				const dataBuffer = fs.readFileSync(file.path);
 				const uint8Array = new Uint8Array(dataBuffer);
 				const pdf = await pdfjsLib.getDocument({ data: uint8Array })
@@ -571,5 +575,4 @@ Answer:`;
 
 		return;
 	}
-
 }
