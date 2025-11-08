@@ -14,7 +14,7 @@
     "rootDir": "./src",
     "baseUrl": "./",
     "skipLibCheck": true,
-    "incremental": true
+    "incremental": false
   },
   "include": ["src/**/*"],
   "exclude": [

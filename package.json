@@ -1,7 +1,6 @@
 {
   "name": "lernen",
   "version": "1.0.0",
-  "main": "dist/main",
   "scripts": {
     "build": "nest build",
     "start": "nest start",
