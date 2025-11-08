@@ -329,7 +329,8 @@ export class ChatService {
 		chatId: string | 'new',
 		message: string,
 		userId: string,
-		selectedDocumentIds?: string[]
+		selectedDocumentIds?: string[],
+		helpful?: boolean
 	) {
 		// Create new chat if needed
 		if (chatId === 'new') {
@@ -436,6 +437,7 @@ Answer:`;
 						assistant: assistantMessage,
 					},
 					totalTokens: completion.usage?.total_tokens || 0,
+					helpful: helpful ?? null,
 				})
 				.returning();
 
