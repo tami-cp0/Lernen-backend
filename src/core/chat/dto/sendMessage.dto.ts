@@ -32,10 +32,7 @@ export class SendMessageBodyDTO {
 	@IsString({ each: true, message: 'Each document ID must be a string' })
 	@ArrayMaxSize(3, { message: 'You can provide at most 3 document IDs' })
 	@IsArray({ message: 'selectedDocumentIds must be an array of IDs' })
-	@IsNotEmpty({
-		each: true,
-		message: 'selectedDocumentIds cannot contain empty values',
-	})
+	@IsOptional()
 	selectedDocumentIds?: string[];
 
 	@ApiProperty({
