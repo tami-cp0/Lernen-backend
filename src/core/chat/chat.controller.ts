@@ -25,6 +25,7 @@ import {
 	ApiBadRequestResponse,
 	ApiBody,
 	ApiConsumes,
+	ApiCreatedResponse,
 	ApiExtraModels,
 	ApiInternalServerErrorResponse,
 	ApiNoContentResponse,
@@ -32,6 +33,7 @@ import {
 	ApiOperation,
 	ApiParam,
 	ApiPayloadTooLargeResponse,
+	ApiResponse,
 	getSchemaPath,
 } from '@nestjs/swagger';
 import { ApiDefaultDocProtected } from 'src/swagger';
@@ -40,12 +42,14 @@ import {
 	GetChatsResponseDTO,
 	SendMessageResponseDTO,
 } from './dto/chatResponses.dto';
+import { CreateChatBodyDTO, CreateChatResponseDTO } from './dto/createChat.dto';
 
 @ApiExtraModels(
 	UploadDocumentResponseDTO,
 	GetChatResponseDTO,
 	GetChatsResponseDTO,
-	SendMessageResponseDTO
+	SendMessageResponseDTO,
+	CreateChatResponseDTO
 )
 @Controller('chats')
 export class ChatController {
@@ -180,6 +184,36 @@ export class ChatController {
 		@Req() req: Request
 	) {
 		// return await this.chatService.removeDocument(param.chatId!, body.documentId, req.user!.id);
+	}
+
+	@ApiOperation({
+		summary: 'Create a new chat',
+		description: `
+            Creates a new empty chat for the authenticated user.
+            - Optionally accepts a custom UUID for the chat (if not provided, one will be auto-generated)
+            - Chat is created with default title "Chat"
+            - Returns the new chat ID, title, and creation timestamp
+            - Chat is initially empty (no messages or documents)
+            - Title can be set later when sending first message or uploading documents
+        `,
+	})
+	@ApiCreatedResponse({
+		description: 'Chat created successfully',
+		schema: { $ref: getSchemaPath(CreateChatResponseDTO) },
+	})
+	@ApiBadRequestResponse({
+		description: 'Invalid UUID format',
+	})
+	@ApiResponse({
+		status: 409,
+		description: 'A chat with this ID already exists',
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@Post('create')
+	@HttpCode(201)
+	async createChat(@Req() req: Request, @Body() body: CreateChatBodyDTO) {
+		return await this.chatService.createChat(req.user!.id, body.chatId);
 	}
 
 	@ApiOperation({

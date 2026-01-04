@@ -1,5 +1,6 @@
 import {
 	BadRequestException,
+	ConflictException,
 	Injectable,
 	InternalServerErrorException,
 	UploadedFiles,
@@ -528,15 +529,17 @@ Answer:`;
 	}
 
 	async getChats(userId: string) {
-		const chats = await this.databaseService.db
+		const userChats = await this.databaseService.db
 			.select()
-			.from(documents)
-			.where(eq(documents.userId, userId))
-			.orderBy(desc(documents.createdAt));
+			.from(chats)
+			.where(eq(chats.userId, userId))
+			.orderBy(desc(chats.createdAt));
 
 		return {
 			message: 'Chats retrieved successfully',
-			data: chats,
+			data: {
+				chats: userChats,
+			},
 		};
 	}
 
@@ -576,5 +579,42 @@ Answer:`;
 		await this.databaseService.db.delete(chats).where(eq(chats.id, chatId));
 
 		return;
+	}
+
+	async createChat(userId: string, chatId?: string) {
+		const chatValues: any = {
+			userId,
+			title: 'Chat',
+		};
+
+		if (chatId) {
+			chatValues.id = chatId;
+		}
+
+		try {
+			const newChat = await this.databaseService.db
+				.insert(chats)
+				.values(chatValues)
+				.returning();
+
+			return {
+				message: 'Chat created successfully',
+				chatId: newChat[0].id,
+				title: newChat[0].title,
+				createdAt: newChat[0].createdAt,
+			};
+		} catch (error: any) {
+			// Check for PostgreSQL unique violation error in Drizzle error or its cause
+			const errorCode = error?.code || error?.cause?.code;
+			const errorConstraint =
+				error?.constraint || error?.cause?.constraint;
+
+			if (errorCode === '23505' || errorConstraint === 'chats_pkey') {
+				throw new ConflictException(
+					'A chat with this ID already exists'
+				);
+			}
+			throw error;
+		}
 	}
 }
