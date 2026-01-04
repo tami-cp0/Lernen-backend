@@ -65,11 +65,11 @@ export class ChatController {
 		summary: 'Upload documents to a chat',
 		description: `
             Uploads PDF or DOCX files to a specific chat or creates a new chat if chatId is "new".
-            - Maximum 3 documents per chat (existing + new uploads combined)
+            - Maximum 5 documents per chat (existing + new uploads combined)
             - Supported formats: PDF (.pdf) and Word documents (.docx)
-            - Maximum file size: 3MB per file
-            - Maximum 3 files per request
-            - Maximum of 3 upload slots per chat
+            - Maximum file size: 10MB per file
+            - Maximum 5 files per request
+            - Maximum of 5 upload slots per chat
             - Files are processed through OpenAI's vector store for AI chat functionality
             - If chatId is "new", a new chat will be created using the optional message as title (first 16 chars)
         `,
@@ -87,7 +87,7 @@ export class ChatController {
 						format: 'binary',
 					},
 					description:
-						'PDF or DOCX files to upload (max 3 files, 3MB each)',
+						'PDF or DOCX files to upload (max 5 files, 10MB each)',
 				},
 				message: {
 					type: 'string',
@@ -123,7 +123,7 @@ export class ChatController {
 		},
 	})
 	@ApiPayloadTooLargeResponse({
-		description: 'File size exceeds limit (3MB per file)',
+		description: 'File size exceeds limit (10MB per file)',
 		schema: {
 			type: 'object',
 			properties: {

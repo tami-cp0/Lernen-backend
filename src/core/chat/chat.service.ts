@@ -134,7 +134,7 @@ export class ChatService {
 			failed: [],
 		};
 
-		const MAX_UPLOADS = 3;
+		const MAX_UPLOADS = 5;
 
 		// Check existing documents to enforce upload limit
 		let remainingSlots = MAX_UPLOADS;
