@@ -5,6 +5,7 @@ import {
 	Get,
 	HttpCode,
 	Param,
+	Patch,
 	Post,
 	Req,
 	UploadedFiles,
@@ -43,13 +44,18 @@ import {
 	SendMessageResponseDTO,
 } from './dto/chatResponses.dto';
 import { CreateChatBodyDTO, CreateChatResponseDTO } from './dto/createChat.dto';
+import {
+	UpdateFeedbackBodyDTO,
+	UpdateFeedbackResponseDTO,
+} from './dto/updateFeedback.dto';
 
 @ApiExtraModels(
 	UploadDocumentResponseDTO,
 	GetChatResponseDTO,
 	GetChatsResponseDTO,
 	SendMessageResponseDTO,
-	CreateChatResponseDTO
+	CreateChatResponseDTO,
+	UpdateFeedbackResponseDTO
 )
 @Controller('chats')
 export class ChatController {
@@ -367,6 +373,49 @@ export class ChatController {
 			body.message,
 			req.user!.id,
 			body.selectedDocumentIds,
+			body.helpful
+		);
+	}
+
+	@ApiOperation({
+		summary: 'Update message feedback',
+		description: `
+            Updates the helpful status of a specific message in a chat.
+            - Allows users to mark messages as helpful or not helpful after they've been sent
+            - Only the chat owner can update feedback for messages in their chats
+            - Message must exist in the specified chat
+        `,
+	})
+	@ApiParam({
+		name: 'chatId',
+		description: 'UUID of the chat',
+		example: '123e4567-e89b-12d3-a456-426614174000',
+	})
+	@ApiParam({
+		name: 'messageId',
+		description: 'UUID of the message',
+		example: '123e4567-e89b-12d3-a456-426614174001',
+	})
+	@ApiOkResponse({
+		description: 'Feedback updated successfully',
+		schema: { $ref: getSchemaPath(UpdateFeedbackResponseDTO) },
+	})
+	@ApiBadRequestResponse({
+		description: 'Chat not found or message not found in chat',
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@Patch(':chatId/messages/:messageId/feedback')
+	async updateMessageFeedback(
+		@Param('chatId') chatId: string,
+		@Param('messageId') messageId: string,
+		@Body() body: UpdateFeedbackBodyDTO,
+		@Req() req: Request
+	) {
+		return await this.chatService.updateMessageFeedback(
+			chatId,
+			messageId,
+			req.user!.id,
 			body.helpful
 		);
 	}

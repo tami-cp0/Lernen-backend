@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import { DatabaseService } from 'src/database/database.service';
 import { documents } from 'src/database/schema/documents';
 import { ChromaConfigType, OpenAIConfigType } from 'src/config/config.types';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, exists, sql } from 'drizzle-orm';
 import { chatMessages, chats } from 'src/database/schema';
 
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
@@ -532,7 +532,17 @@ Answer:`;
 		const userChats = await this.databaseService.db
 			.select()
 			.from(chats)
-			.where(eq(chats.userId, userId))
+			.where(
+				and(
+					eq(chats.userId, userId),
+					exists(
+						this.databaseService.db
+							.select()
+							.from(chatMessages)
+							.where(eq(chatMessages.chatId, chats.id))
+					)
+				)
+			)
 			.orderBy(desc(chats.createdAt));
 
 		return {
@@ -616,5 +626,46 @@ Answer:`;
 			}
 			throw error;
 		}
+	}
+
+	async updateMessageFeedback(
+		chatId: string,
+		messageId: string,
+		userId: string,
+		helpful: boolean
+	) {
+		// Verify chat belongs to user
+		const chat = await this.databaseService.db.query.chats.findFirst({
+			where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+		});
+
+		if (!chat) {
+			throw new BadRequestException('Chat not found');
+		}
+
+		// Verify message belongs to the chat
+		const message =
+			await this.databaseService.db.query.chatMessages.findFirst({
+				where: and(
+					eq(chatMessages.id, messageId),
+					eq(chatMessages.chatId, chatId)
+				),
+			});
+
+		if (!message) {
+			throw new BadRequestException('Message not found in this chat');
+		}
+
+		// Update the helpful status
+		await this.databaseService.db
+			.update(chatMessages)
+			.set({ helpful })
+			.where(eq(chatMessages.id, messageId));
+
+		return {
+			message: 'Feedback updated successfully',
+			messageId,
+			helpful,
+		};
 	}
 }
