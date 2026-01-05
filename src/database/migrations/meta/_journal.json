@@ -15,6 +15,13 @@
       "when": 1766516559214,
       "tag": "0001_tranquil_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767607549527,
+      "tag": "0002_lazy_ghost_rider",
+      "breakpoints": true
     }
   ]
 }
