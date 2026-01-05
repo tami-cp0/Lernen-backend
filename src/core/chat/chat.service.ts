@@ -529,6 +529,9 @@ Answer:`;
 				});
 			}
 
+			// Delete file from S3
+			await this.s3Service.deleteObject('user-docs', documentToRemove.s3key);
+
 			// Delete document record from database
 			await this.databaseService.db
 				.delete(documents)
