@@ -16,6 +16,7 @@ import { chatMessages, chats } from 'src/database/schema';
 
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CloudClient } from 'chromadb';
+import { S3Service } from 'src/common/services/s3/s3.service';
 
 /**
  * Custom OpenAI Embedding Function for ChromaDB
@@ -45,7 +46,8 @@ export class ChatService {
 
 	constructor(
 		private configService: ConfigService,
-		private databaseService: DatabaseService
+		private databaseService: DatabaseService,
+		private s3Service: S3Service
 	) {
 		const openaiKey =
 			this.configService.get<OpenAIConfigType>('openai')!.key!;
@@ -194,14 +196,16 @@ export class ChatService {
 			}
 
 			try {
-				// Step 1: Extract text from PDF using pdfjs-dist (page-by-page)
+				// Step 1: Read file buffer once (used for both PDF parsing and S3 upload)
+				const fileBuffer = fs.readFileSync(file.path);
+				
+				// Extract text from PDF using pdfjs-dist (page-by-page)
 				// Dynamic import for ES module
 				const pdfjsLib = await import(
 					'pdfjs-dist/legacy/build/pdf.mjs'
 				);
 
-				const dataBuffer = fs.readFileSync(file.path);
-				const uint8Array = new Uint8Array(dataBuffer);
+				const uint8Array = new Uint8Array(fileBuffer);
 				const pdf = await pdfjsLib.getDocument({ data: uint8Array })
 					.promise;
 
@@ -248,7 +252,9 @@ export class ChatService {
 					});
 				}
 
-				// Step 3: Save document metadata to database first to get document ID
+				// Step 3: Generate S3 key and save document metadata to database first
+				const s3Key = this.s3Service.generateKey(userId, file.originalname);
+				
 				const [documentRecord] = await this.databaseService.db
 					.insert(documents)
 					.values({
@@ -259,14 +265,22 @@ export class ChatService {
 						fileSize: file.size,
 						vectorStoreId: `chat_${chatId}`,
 						vectorStoreFileId: `${chatId}_${Date.now()}`,
+						s3key: s3Key,
 					})
 					.returning();
+
+				// Upload file to S3 in a non-blocking way (fire and forget with error handling)
+				this.s3Service.uploadObject('user-docs', s3Key, fileBuffer, file.mimetype)
+					.catch(err => {
+						console.error(`Failed to upload ${file.originalname} to S3 from user ${userId} at ${new Date().toISOString()}:`, err);
+						// Optionally: Add logic to mark document as failed upload in database
+					});
 
 				// Step 4: Generate embeddings for all chunks
 				const chunkTexts = allChunks.map((c) => c.text);
 				const embeddings = await this.generateEmbeddings(chunkTexts);
 
-				// Step 5: Prepare data for ChromaDB
+				// Step 4: Prepare data for ChromaDB
 				const ids: string[] = [];
 				const metadatas: Array<Record<string, any>> = [];
 				const chromaDocs: string[] = [];
@@ -284,7 +298,7 @@ export class ChatService {
 					chromaDocs.push(chunk.text);
 				});
 
-				// Step 6: Add to ChromaDB collection
+				// Step 5: Add to ChromaDB collection
 				await collection.add({
 					ids,
 					embeddings,

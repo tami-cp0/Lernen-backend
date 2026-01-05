@@ -48,6 +48,13 @@ async function bootstrap() {
   app.set('trust proxy', true);
 
   app.use(helmet());
+  
+  // Simple request logger middleware
+	app.use((req, res, next) => {
+		const timestamp = new Date().toISOString();
+		Logger.log(`[${timestamp}] ${req.method} ${req.url}`, 'HTTP');
+		next();
+	});
 
   const port = config.get<AppConfigType>('app')!.port || 3000;
   await app.listen(port);

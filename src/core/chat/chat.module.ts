@@ -4,10 +4,12 @@ import { ChatController } from './chat.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import * as multer from 'multer';
 import { DatabaseModule } from 'src/database/database.module';
+import { S3Module } from 'src/common/services/s3/s3.module';
 
 @Module({
 	imports: [
 		DatabaseModule,
+		S3Module,
 		/*
     Middleware level limiting because the web app
     only accepts document uploads to the chat

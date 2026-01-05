@@ -108,6 +108,19 @@ class EnvironmentVariables {
   @IsString({ message: 'CHROMA_DATABASE must be a string' })
   @IsNotEmpty({ message: 'CHROMA_DATABASE is required and cannot be empty' })
   CHROMA_DATABASE: string;
+
+  // S3
+  @IsString({ message: 'TEBI_S3_ENDPOINT must be a string' })
+  @IsNotEmpty({ message: 'TEBI_S3_ENDPOINT is required and cannot be empty' })
+  TEBI_S3_ENDPOINT: string;
+
+  @IsString({ message: 'TEBI_ACCESS_KEY must be a string' })
+  @IsNotEmpty({ message: 'TEBI_ACCESS_KEY is required and cannot be empty' })
+  TEBI_ACCESS_KEY: string;
+
+  @IsString({ message: 'TEBI_SECRET_KEY must be a string' })
+  @IsNotEmpty({ message: 'TEBI_SECRET_KEY is required and cannot be empty' })
+  TEBI_SECRET_KEY: string;
 }
 
 

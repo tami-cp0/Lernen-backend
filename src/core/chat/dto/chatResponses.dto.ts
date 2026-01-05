@@ -111,6 +111,12 @@ export class DocumentDTO
 	@ApiProperty({ example: 2048, description: 'File size in bytes' })
 	fileSize: number;
 
+	@ApiProperty({
+		example: 'user123/1704412800000/document.pdf',
+		description: 'S3 object key for the uploaded file',
+	})
+	s3key: string;
+
 	//omitted
 	// @ApiProperty({ example: 'vs_abc123', description: 'OpenAI vector store ID' })
 	// vectorStoreId: string;

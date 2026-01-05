@@ -19,6 +19,7 @@ export const documents = pgTable("documents", {
   fileSize: integer("file_size_mb").notNull(),
   vectorStoreId: varchar("vector_store_id", { length: 255 }).notNull(),
   vectorStoreFileId: varchar("vector_store_file_id", { length: 255 }).notNull(),
+  s3key: text("s3_key").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });

@@ -11,6 +11,7 @@ import { EmailModule } from './common/services/email/email.module';
 import { ChatModule } from './core/chat/chat.module';
 import { UserModule } from './core/user/user.module';
 import { AppController } from './app.controller';
+import { S3Module } from './common/services/s3/s3.module';
 
 @Module({
   imports: [
@@ -37,7 +38,7 @@ import { AppController } from './app.controller';
     AuthModule,
     EmailModule,
     ChatModule,
-    UserModule
+    UserModule,
   ],
   controllers: [AppController],
   providers: [
