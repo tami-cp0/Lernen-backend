@@ -189,7 +189,7 @@ export class ChatController {
 		@Body() body: RemoveDocBodyDTO,
 		@Req() req: Request
 	) {
-		// return await this.chatService.removeDocument(param.chatId!, body.documentId, req.user!.id);
+		return await this.chatService.removeDocument(param.chatId!, body.documentId, req.user!.id);
 	}
 
 	@ApiOperation({

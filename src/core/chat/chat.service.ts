@@ -289,7 +289,7 @@ export class ChatService {
 				const chunkTexts = allChunks.map((c) => c.text);
 				const embeddings = await this.generateEmbeddings(chunkTexts);
 
-				// Step 4: Prepare data for ChromaDB
+				// Step 5: Prepare data for ChromaDB
 				const ids: string[] = [];
 				const metadatas: Array<Record<string, any>> = [];
 				const chromaDocs: string[] = [];
@@ -506,33 +506,41 @@ Answer:`;
 			throw new BadRequestException('Document not found in this chat');
 		}
 
+		const errors: string[] = [];
+
+		// Step 1: Delete all chunks from ChromaDB (best effort)
 		try {
-			// Get collection
 			const collection = await this.getOrCreateCollection();
 
-			// Delete all chunks associated with this document from ChromaDB
-			// Query for all chunks with this documentId
-			const chunkIds: string[] = [];
-
-			// find all chunk IDs that match his document
-			// stored as `${documentId}_chunk_${index}`, query by metadata
 			const queryResult = await collection.get({
 				where: {
 					documentId: String(documentId),
 				},
 			});
 
-			// Delete the chunks if found
 			if (queryResult.ids && queryResult.ids.length > 0) {
 				await collection.delete({
 					ids: queryResult.ids,
 				});
 			}
+		} catch (err) {
+			console.error('Error deleting from ChromaDB:', err);
+			errors.push('Failed to delete from vector store');
+		}
 
-			// Delete file from S3
-			await this.s3Service.deleteObject('user-docs', documentToRemove.s3key);
+		// Step 2: Delete file from S3 (best effort)
+		try {
+			await this.s3Service.deleteObject(
+				'user-docs',
+				documentToRemove.s3key
+			);
+		} catch (err) {
+			console.error('Error deleting from S3:', err);
+			errors.push('Failed to delete from cloud storage');
+		}
 
-			// Delete document record from database
+		// Step 3: Always delete document record from database (critical)
+		try {
 			await this.databaseService.db
 				.delete(documents)
 				.where(
@@ -542,16 +550,24 @@ Answer:`;
 						eq(documents.userId, userId)
 					)
 				);
-
-			return {
-				message: 'Document removed successfully',
-			};
 		} catch (err) {
-			console.error('Error removing document:', err);
+			console.error('Error deleting document from database:', err);
 			throw new InternalServerErrorException(
-				err instanceof Error ? err.message : 'Error removing document'
+				'Failed to delete document record from database'
 			);
 		}
+
+		// Return success even if some cleanup steps failed
+		if (errors.length > 0) {
+			console.warn(
+				`Document ${documentId} removed with warnings:`,
+				errors
+			);
+		}
+
+		return {
+			message: 'Document removed successfully',
+		};
 	}
 
 	async getChats(userId: string) {

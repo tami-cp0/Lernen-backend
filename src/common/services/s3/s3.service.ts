@@ -60,6 +60,6 @@ export class S3Service {
     // Helper: generate unique keys
     generateKey(userId: string, filename: string) {
         const timestamp = Date.now();
-        return `${userId}/${timestamp}/${filename}`;
+        return `${userId}/${timestamp}-${filename}`;
     }
 }

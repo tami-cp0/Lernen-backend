@@ -20,7 +20,7 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000', `${config.get<AppConfigType>('app')!.frontendUrl}`, 'http://127.0.0.1:3000'
     ],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS', 'DELETE'],
     credentials: true,
   }
 
