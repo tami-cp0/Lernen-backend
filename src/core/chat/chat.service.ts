@@ -198,7 +198,7 @@ export class ChatService {
 			try {
 				// Step 1: Read file buffer once (used for both PDF parsing and S3 upload)
 				const fileBuffer = fs.readFileSync(file.path);
-				
+
 				// Extract text from PDF using pdfjs-dist (page-by-page)
 				// Dynamic import for ES module
 				const pdfjsLib = await import(
@@ -253,8 +253,11 @@ export class ChatService {
 				}
 
 				// Step 3: Generate S3 key and save document metadata to database first
-				const s3Key = this.s3Service.generateKey(userId, file.originalname);
-				
+				const s3Key = this.s3Service.generateKey(
+					userId,
+					file.originalname
+				);
+
 				const [documentRecord] = await this.databaseService.db
 					.insert(documents)
 					.values({
@@ -270,9 +273,15 @@ export class ChatService {
 					.returning();
 
 				// Upload file to S3 in a non-blocking way (fire and forget with error handling)
-				this.s3Service.uploadObject('user-docs', s3Key, fileBuffer, file.mimetype)
-					.catch(err => {
-						console.error(`Failed to upload ${file.originalname} to S3 from user ${userId} at ${new Date().toISOString()}:`, err);
+				this.s3Service
+					.uploadObject('user-docs', s3Key, fileBuffer, file.mimetype)
+					.catch((err) => {
+						console.error(
+							`Failed to upload ${
+								file.originalname
+							} to S3 from user ${userId} at ${new Date().toISOString()}:`,
+							err
+						);
 						// Optionally: Add logic to mark document as failed upload in database
 					});
 
@@ -680,6 +689,48 @@ Answer:`;
 			message: 'Feedback updated successfully',
 			messageId,
 			helpful,
+		};
+	}
+
+	async getSignedDocumentUrl(
+		chatId: string,
+		documentId: string,
+		userId: string
+	) {
+		// Verify chat belongs to user
+		const chat = await this.databaseService.db.query.chats.findFirst({
+			where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+			with: {
+				documents: true,
+			},
+		});
+
+		if (!chat) {
+			throw new BadRequestException('Chat not found');
+		}
+
+		// Verify document belongs to the chat
+		const document = chat.documents.find((doc) => doc.id === documentId);
+
+		if (!document) {
+			throw new BadRequestException('Document not found in this chat');
+		}
+
+		// Generate signed URL (expires in 1 day)
+		const signedUrl = await this.s3Service.getSignedUrl(
+			'user-docs',
+			document.s3key,
+			86400 // 1 day (24 hours)
+		);
+
+		return {
+			message: 'Signed URL generated successfully',
+			data: {
+				signedUrl,
+				fileName: document.fileName,
+				documentId: document.id,
+				expiresIn: 86400,
+			},
 		};
 	}
 }

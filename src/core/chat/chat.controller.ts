@@ -419,4 +419,84 @@ export class ChatController {
 			body.helpful
 		);
 	}
+
+	@ApiOperation({
+		summary: 'Get signed URL for document download',
+		description: `
+            Generates a temporary signed URL to download a document from a chat.
+            - URL expires after 1 day (86400 seconds)
+            - Only the chat owner can generate signed URLs for documents in their chats
+            - Document must exist in the specified chat
+            - Use the signed URL to directly download the file from S3
+        `,
+	})
+	@ApiParam({
+		name: 'chatId',
+		description: 'UUID of the chat',
+		example: '123e4567-e89b-12d3-a456-426614174000',
+	})
+	@ApiParam({
+		name: 'documentId',
+		description: 'UUID of the document',
+		example: '123e4567-e89b-12d3-a456-426614174001',
+	})
+	@ApiOkResponse({
+		description: 'Signed URL generated successfully',
+		schema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					example: 'Signed URL generated successfully',
+				},
+				data: {
+					type: 'object',
+					properties: {
+						signedUrl: {
+							type: 'string',
+							example:
+								'https://s3.amazonaws.com/bucket/key?signature=...',
+						},
+						fileName: {
+							type: 'string',
+							example: 'document.pdf',
+						},
+						expiresIn: {
+							type: 'number',
+							example: 86400,
+							description: 'Time in seconds until URL expires',
+						},
+					},
+				},
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Chat not found or document not found in chat',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: {
+					type: 'string',
+					example: 'Document not found in this chat',
+				},
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@Get(':chatId/documents/:documentId/sign')
+	async getSignedDocumentUrl(
+		@Param('chatId') chatId: string,
+		@Param('documentId') documentId: string,
+		@Req() req: Request
+	) {
+		return await this.chatService.getSignedDocumentUrl(
+			chatId,
+			documentId,
+			req.user!.id
+		);
+	}
 }
