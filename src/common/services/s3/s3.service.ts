@@ -23,6 +23,7 @@ export class S3Service {
                 Bucket: bucket,
                 Key: key,
                 Body: body,
+                CacheControl: 'private, max-age=3600', // Cache for 1 hour
                 ContentType: contentType,
             }),
         );

@@ -44,6 +44,26 @@ export class SendMessageBodyDTO {
 	@IsOptional()
 	@IsBoolean({ message: 'helpful must be a boolean value' })
 	helpful?: boolean;
+
+	@ApiProperty({
+		description: 'Optional page number the user is currently viewing',
+		example: 5,
+		type: Number,
+		required: false,
+	})
+	@IsOptional()
+	pageNumber?: number;
+
+	@ApiProperty({
+		description:
+			'Optional content of the page the user is currently viewing',
+		example: 'This is the content of the page...',
+		type: String,
+		required: false,
+	})
+	@IsOptional()
+	@IsString({ message: 'pageContent must be a string' })
+	pageContent?: string;
 }
 
 export default SendMessageBodyDTO;

@@ -12,7 +12,7 @@ import { DatabaseService } from 'src/database/database.service';
 import { documents } from 'src/database/schema/documents';
 import { ChromaConfigType, OpenAIConfigType } from 'src/config/config.types';
 import { and, desc, eq, exists, sql } from 'drizzle-orm';
-import { chatMessages, chats } from 'src/database/schema';
+import { chatMessages, chats, users } from 'src/database/schema';
 
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CloudClient } from 'chromadb';
@@ -354,8 +354,11 @@ export class ChatService {
 		message: string,
 		userId: string,
 		selectedDocumentIds?: string[],
-		helpful?: boolean
+		helpful?: boolean,
+		pageNumber?: number,
+		pageContent?: string
 	) {
+		console.log(selectedDocumentIds, pageNumber);
 		// Create new chat if needed
 		if (chatId === 'new') {
 			const newChatId = (
@@ -380,55 +383,80 @@ export class ChatService {
 			throw new BadRequestException('Chat not found');
 		}
 
+		const user = await this.databaseService.db.query.users.findFirst({
+			where: eq(users.id, userId),
+		});
+
 		try {
-			// Step 1: Get collection
-			const collection = await this.getOrCreateCollection();
+			let context = '';
+			let retrievedMetadatas: any[] = [];
+			let retrievedDocs: any[] = [];
 
-			// Step 2: Generate embedding for the query
-			const [queryEmbedding] = await this.generateEmbeddings([message]);
+			// Only perform retrieval if chat has documents AND documents are selected
+			const shouldRetrieve =
+				chat.documents &&
+				chat.documents.length > 0 &&
+				selectedDocumentIds &&
+				selectedDocumentIds.length > 0;
 
-			// Step 3: Build metadata filter
-			const whereFilter: Record<string, any> = {
-				$and: [{ chatId: String(chatId) }, { userId: String(userId) }],
-			};
+			if (shouldRetrieve) {
+				// Step 1: Get collection
+				const collection = await this.getOrCreateCollection();
 
-			// Add document filter if specific documents are selected
-			if (selectedDocumentIds && selectedDocumentIds.length > 0) {
-				whereFilter.$and.push({
-					documentId: { $in: selectedDocumentIds },
+				// Step 2: Generate embedding for the query
+				const [queryEmbedding] = await this.generateEmbeddings([
+					message,
+				]);
+
+				// Step 3: Build metadata filter
+				const whereFilter: Record<string, any> = {
+					$and: [
+						{ chatId: String(chatId) },
+						{ userId: String(userId) },
+						{ documentId: { $in: selectedDocumentIds } },
+					],
+				};
+
+				// Step 4: Query ChromaDB for similar chunks
+				const queryResult = await collection.query({
+					queryEmbeddings: [queryEmbedding],
+					nResults: 4,
+					where: whereFilter,
 				});
+
+				// Step 5: Format retrieved documents
+				retrievedDocs = queryResult.documents[0] || [];
+				retrievedMetadatas = queryResult.metadatas[0] || [];
+
+				// Build context from retrieved documents
+				context = retrievedDocs
+					.map((doc, idx) => {
+						const metadata = retrievedMetadatas[idx];
+						return `[Page ${metadata?.page || 'N/A'} - ${
+							metadata?.fileName || 'Unknown'
+						}]\n${doc}`;
+					})
+					.join('\n\n');
 			}
 
-			// Step 4: Query ChromaDB for similar chunks
-			const queryResult = await collection.query({
-				queryEmbeddings: [queryEmbedding],
-				nResults: 4,
-				where: whereFilter,
-			});
-
-			// Step 5: Format retrieved documents
-			const retrievedDocs = queryResult.documents[0] || [];
-			const retrievedMetadatas = queryResult.metadatas[0] || [];
-
-			// Build context from retrieved documents
-			const context = retrievedDocs
-				.map((doc, idx) => {
-					const metadata = retrievedMetadatas[idx];
-					return `[Page ${metadata?.page || 'N/A'} - ${
-						metadata?.fileName || 'Unknown'
-					}]\n${doc}`;
-				})
-				.join('\n\n');
-
 			// Step 6: Create prompt for LLM
-			const prompt = `Answer the question based only on the following context. If you cannot answer the question based on the context, say "I don't have enough information to answer that question."
+			let prompt = '';
 
-Context:
-${context}
+			if (context) {
+				prompt = `User education level: ${user?.educationLevel}
 
-Question: ${message}
+			Document:
+			${context}`;
+			} else {
+				prompt = `User education level: ${user?.educationLevel}`;
+			}
 
-Answer:`;
+			// Add page context if provided
+			if (pageNumber && pageContent) {
+				prompt += `\n\nUser is currently viewing page ${pageNumber} which contains the following content:\n${pageContent}`;
+			}
+
+			prompt += `\n\nQuestion: ${message}`;
 
 			// Step 7: Get response from OpenAI
 			const completion = await this.openai.chat.completions.create({
@@ -436,8 +464,68 @@ Answer:`;
 				messages: [
 					{
 						role: 'system',
-						content:
-							'You are a helpful assistant that answers questions based on the provided context.',
+						content: `
+You are a distinguished professor who teaches using an interactive, dialogue-driven approach. You answer questions strictly based on the user’s input (originating from a document), but you must never mention “context,” “provided context,” or similar phrases.
+You do not create courses or progressive learning paths unless explicitly requested.
+Avoid lengthy bullet lists. ocassionaly refer to page numbers and document using the document name when relevant.
+
+All responses must use markdown only to improve clarity.
+
+Markdown Rules
+
+Use headings and subheadings.
+
+Use blockquotes only when quoting text.
+
+Horizontal rules (---) to seperate sections or headings and is a must use when relevant.
+
+Use lists, bold, italics, code blocks, or tables when they improve clarity.
+
+Teaching Style
+
+Clarity & rigor: concise, academically precise explanations.
+
+Interactivity: ask Socratic follow-up questions when appropriate.
+
+Real-world integration: use examples or analogies when helpful.
+
+Adaptive response: adjust explanations if the learner seems confused.
+
+No assumed curriculum: never build modules unless explicitly asked.
+
+Mandatory Quiz Format
+
+If the user asks for:
+
+a quiz
+
+multiple-choice questions
+
+comprehension checks
+
+practice questions
+
+or says “test me,” “ask me questions,” etc.
+
+You must output only this JSON structure:
+
+{
+  "questions": [
+    {
+      "question": "",
+      "A": "",
+      "B": "",
+      "C": "",
+      "D": "",
+      "answer": "",
+      "hint": ""
+    }
+  ]
+}
+
+
+No text outside the JSON block unless the user later requests an explanation.				
+							`,
 					},
 					{
 						role: 'user',
@@ -464,6 +552,8 @@ Answer:`;
 					helpful: helpful ?? null,
 				})
 				.returning();
+
+			console.log(retrievedMetadatas);
 
 			return {
 				message: 'Message sent successfully',
