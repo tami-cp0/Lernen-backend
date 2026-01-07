@@ -43,6 +43,8 @@ export class ChatService {
 	private chromaClient: CloudClient;
 	private embeddingFunction: OpenAIEmbeddingFunction;
 	private collectionName = 'documents';
+	private readonly DEFAULT_CHAT_NAME = 'New Chat';
+	private readonly CHAT_TITLE_MAX_LENGTH = 28; // Fits in 220px - frontend specifications
 
 	constructor(
 		private configService: ConfigService,
@@ -174,8 +176,11 @@ export class ChatService {
 					.values({
 						userId,
 						title:
-							message?.slice(0, 16) ||
-							pdfFiles[0].originalname.slice(0, 16),
+							message?.slice(0, this.CHAT_TITLE_MAX_LENGTH) ||
+							pdfFiles[0].originalname.slice(
+								0,
+								this.CHAT_TITLE_MAX_LENGTH
+							),
 					})
 					.returning()
 			)[0].id;
@@ -366,7 +371,7 @@ export class ChatService {
 					.insert(chats)
 					.values({
 						userId,
-						title: message.slice(0, 16),
+						title: message.slice(0, this.CHAT_TITLE_MAX_LENGTH),
 					})
 					.returning()
 			)[0].id;
@@ -381,6 +386,14 @@ export class ChatService {
 
 		if (!chat) {
 			throw new BadRequestException('Chat not found');
+		}
+
+		if (chat.title === this.DEFAULT_CHAT_NAME) {
+			// Update chat title based on first message
+			await this.databaseService.db
+				.update(chats)
+				.set({ title: message.slice(0, this.CHAT_TITLE_MAX_LENGTH) })
+				.where(eq(chats.id, chatId));
 		}
 
 		const user = await this.databaseService.db.query.users.findFirst({
@@ -726,7 +739,7 @@ No text outside the JSON block unless the user later requests an explanation.
 	async createChat(userId: string, chatId?: string) {
 		const chatValues: any = {
 			userId,
-			title: 'Chat',
+			title: this.DEFAULT_CHAT_NAME,
 		};
 
 		if (chatId) {
