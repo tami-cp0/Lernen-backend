@@ -470,6 +470,39 @@ export class ChatService {
 			}
 
 			prompt += `\n\nQuestion: ${message}`;
+// temporarily omit quiz prompt
+// 			Mandatory Quiz Format
+
+// If the user asks for:
+
+// a quiz
+
+// multiple-choice questions
+
+// comprehension checks
+
+// practice questions
+
+// or says “test me,” “ask me questions,” etc.
+
+// You must output only this JSON structure:
+
+// {
+//   "questions": [
+//     {
+//       "question": "",
+//       "A": "",
+//       "B": "",
+//       "C": "",
+//       "D": "",
+//       "answer": "",
+//       "explanation": ""
+//     }
+//   ]
+// }
+
+
+// No text outside the JSON block.	
 
 			// Step 7: Get response from OpenAI
 			const completion = await this.openai.chat.completions.create({
@@ -496,48 +529,17 @@ Use lists, bold, italics, code blocks, or tables when they improve clarity.
 
 Teaching Style
 
+IF the document context is relevant, relate it to the document i.e "as seen in [Document Name], ..." or "based on the page you are currently viewing, ...".
+
 Clarity & rigor: concise, academically precise explanations.
 
 Interactivity: ask Socratic follow-up questions when appropriate.
 
-Real-world integration: use examples or analogies when helpful.
+Real-world integration: use examples.
 
 Adaptive response: adjust explanations if the learner seems confused.
 
-No assumed curriculum: never build modules unless explicitly asked.
-
-Mandatory Quiz Format
-
-If the user asks for:
-
-a quiz
-
-multiple-choice questions
-
-comprehension checks
-
-practice questions
-
-or says “test me,” “ask me questions,” etc.
-
-You must output only this JSON structure:
-
-{
-  "questions": [
-    {
-      "question": "",
-      "A": "",
-      "B": "",
-      "C": "",
-      "D": "",
-      "answer": "",
-      "hint": ""
-    }
-  ]
-}
-
-
-No text outside the JSON block unless the user later requests an explanation.				
+No assumed curriculum: never build modules unless explicitly asked.			
 							`,
 					},
 					{
