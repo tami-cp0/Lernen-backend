@@ -5,6 +5,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import * as multer from 'multer';
 import { DatabaseModule } from 'src/database/database.module';
 import { S3Module } from 'src/common/services/s3/s3.module';
+import { ContextGeneratorService } from './helpers/contextGenerator';
 
 @Module({
 	imports: [
@@ -39,7 +40,7 @@ import { S3Module } from 'src/common/services/s3/s3.module';
 			}),
 		}),
 	],
-	providers: [ChatService],
+	providers: [ChatService, ContextGeneratorService],
 	controllers: [ChatController],
 })
 export class ChatModule {}

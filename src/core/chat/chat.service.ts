@@ -12,11 +12,13 @@ import { DatabaseService } from 'src/database/database.service';
 import { documents } from 'src/database/schema/documents';
 import { ChromaConfigType, OpenAIConfigType } from 'src/config/config.types';
 import { and, desc, eq, exists, sql } from 'drizzle-orm';
-import { chatMessages, chats, users } from 'src/database/schema';
+import { chatMessages, chats, chatSummaries, users } from 'src/database/schema';
 
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CloudClient } from 'chromadb';
 import { S3Service } from 'src/common/services/s3/s3.service';
+import { ChatCompletion } from 'openai/resources/chat';
+import { ContextGeneratorService } from './helpers/contextGenerator';
 
 /**
  * Custom OpenAI Embedding Function for ChromaDB
@@ -45,11 +47,13 @@ export class ChatService {
 	private collectionName = 'documents';
 	private readonly DEFAULT_CHAT_NAME = 'New Chat';
 	private readonly CHAT_TITLE_MAX_LENGTH = 28; // Fits in 220px - frontend specifications
+	private readonly MODEL = 'gpt-5-mini';
 
 	constructor(
 		private configService: ConfigService,
 		private databaseService: DatabaseService,
-		private s3Service: S3Service
+		private s3Service: S3Service,
+		private contextGenerator: ContextGeneratorService
 	) {
 		const openaiKey =
 			this.configService.get<OpenAIConfigType>('openai')!.key!;
@@ -363,21 +367,6 @@ export class ChatService {
 		pageNumber?: number,
 		pageContent?: string
 	) {
-		console.log(selectedDocumentIds, pageNumber);
-		// Create new chat if needed
-		if (chatId === 'new') {
-			const newChatId = (
-				await this.databaseService.db
-					.insert(chats)
-					.values({
-						userId,
-						title: message.slice(0, this.CHAT_TITLE_MAX_LENGTH),
-					})
-					.returning()
-			)[0].id;
-			chatId = newChatId;
-		}
-
 		// Verify chat exists and belongs to user
 		const chat = await this.databaseService.db.query.chats.findFirst({
 			where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
@@ -396,16 +385,51 @@ export class ChatService {
 				.where(eq(chats.id, chatId));
 		}
 
-		const user = await this.databaseService.db.query.users.findFirst({
-			where: eq(users.id, userId),
-		});
+		const [count, messages, user] = await Promise.all([
+			this.databaseService.db.$count(
+				chatMessages,
+				eq(chatMessages.chatId, chatId)
+			),
+			this.databaseService.db
+				.select()
+				.from(chatMessages)
+				.where(eq(chatMessages.chatId, chatId))
+				.orderBy(chatMessages.createdAt),
+			this.databaseService.db.query.users.findFirst({
+				where: eq(users.id, userId),
+			}),
+		]);
+
+		const recentHistory =
+			this.contextGenerator.formatRecentHistory(messages);
+
+		const olderSummaryText = await this.contextGenerator.getLatestSummary(
+			chatId
+		);
+
+		// Generate summary asynchronously (non-blocking) if needed
+		if (count % 6 === 1 && messages.length > 4) {
+			this.contextGenerator
+				.generateSummary(
+					this.openai,
+					chatId,
+					count,
+					messages,
+					this.MODEL
+				)
+				.catch((err) => {
+					console.error(
+						`Failed to generate summary for chat ${chatId}:`,
+						err
+					);
+				});
+		}
 
 		try {
 			let context = '';
 			let retrievedMetadatas: any[] = [];
 			let retrievedDocs: any[] = [];
 
-			// Only perform retrieval if chat has documents AND documents are selected
 			const shouldRetrieve =
 				chat.documents &&
 				chat.documents.length > 0 &&
@@ -413,146 +437,85 @@ export class ChatService {
 				selectedDocumentIds.length > 0;
 
 			if (shouldRetrieve) {
-				// Step 1: Get collection
 				const collection = await this.getOrCreateCollection();
-
-				// Step 2: Generate embedding for the query
-				const [queryEmbedding] = await this.generateEmbeddings([
-					message,
-				]);
-
-				// Step 3: Build metadata filter
-				const whereFilter: Record<string, any> = {
-					$and: [
-						{ chatId: String(chatId) },
-						{ userId: String(userId) },
-						{ documentId: { $in: selectedDocumentIds } },
-					],
-				};
-
-				// Step 4: Query ChromaDB for similar chunks
-				const queryResult = await collection.query({
-					queryEmbeddings: [queryEmbedding],
-					nResults: 4,
-					where: whereFilter,
-				});
-
-				// Step 5: Format retrieved documents
-				retrievedDocs = queryResult.documents[0] || [];
-				retrievedMetadatas = queryResult.metadatas[0] || [];
-
-				// Build context from retrieved documents
-				context = retrievedDocs
-					.map((doc, idx) => {
-						const metadata = retrievedMetadatas[idx];
-						return `[Page ${metadata?.page || 'N/A'} - ${
-							metadata?.fileName || 'Unknown'
-						}]\n${doc}`;
-					})
-					.join('\n\n');
+				const result =
+					await this.contextGenerator.retrieveDocumentContext(
+						collection,
+						this.generateEmbeddings.bind(this),
+						message,
+						chatId,
+						userId,
+						selectedDocumentIds
+					);
+				context = result.context;
+				retrievedMetadatas = result.retrievedMetadatas;
+				retrievedDocs = result.retrievedDocs;
 			}
 
-			// Step 6: Create prompt for LLM
-			let prompt = '';
+			const prompt = this.contextGenerator.buildPrompt(
+				user?.educationLevel,
+				recentHistory,
+				olderSummaryText,
+				context,
+				message,
+				pageNumber,
+				pageContent
+			);
 
-			if (context) {
-				prompt = `User education level: ${user?.educationLevel}
-
-			Document:
-			${context}`;
-			} else {
-				prompt = `User education level: ${user?.educationLevel}`;
-			}
-
-			// Add page context if provided
-			if (pageNumber && pageContent) {
-				prompt += `\n\nUser is currently viewing page ${pageNumber} which contains the following content:\n${pageContent}`;
-			}
-
-			prompt += `\n\nQuestion: ${message}`;
-// temporarily omit quiz prompt
-// 			Mandatory Quiz Format
-
-// If the user asks for:
-
-// a quiz
-
-// multiple-choice questions
-
-// comprehension checks
-
-// practice questions
-
-// or says “test me,” “ask me questions,” etc.
-
-// You must output only this JSON structure:
-
-// {
-//   "questions": [
-//     {
-//       "question": "",
-//       "A": "",
-//       "B": "",
-//       "C": "",
-//       "D": "",
-//       "answer": "",
-//       "explanation": ""
-//     }
-//   ]
-// }
-
-
-// No text outside the JSON block.	
-
-			// Step 7: Get response from OpenAI
+			console.log(prompt);
 			const completion = await this.openai.chat.completions.create({
-				model: 'gpt-4-turbo-preview',
+				model: this.MODEL,
 				messages: [
 					{
 						role: 'system',
 						content: `
-You are a distinguished professor who teaches using an interactive, dialogue-driven approach. You answer questions strictly based on the user’s input (originating from a document), but you must never mention “context,” “provided context,” or similar phrases.
-You do not create courses or progressive learning paths unless explicitly requested.
-Avoid lengthy bullet lists. ocassionaly refer to page numbers and document using the document name when relevant.
 
-All responses must use markdown only to improve clarity.
+You are a document-grounded assistant that helps users understand and reason about their uploaded documents.
 
-Markdown Rules
+When a document is provided, you must ground your responses strictly in the document’s content.
+Use the document as the primary and authoritative source.
 
-Use headings and subheadings.
+examples: "based on your document...", "you can also find this on <page number>", "this page covers...is that what you are looking for?" etc. only state document name if multiple documents are provided.
 
-Use blockquotes only when quoting text.
+If page numbers or document names are not available, do not fabricate them and simply answer without citation.
+If a user’s question cannot be answered from the document, clearly state that the information is not present in the provided material.
+Do not introduce information not supported by the document unless explicitly requested.
 
-Horizontal rules (---) to seperate sections or headings and is a must use when relevant.
+you cannot search the web, you cannot provide images only ascii art, you are not an assistant primarily for coding etc. this info is just for you and not the user.
 
-Use lists, bold, italics, code blocks, or tables when they improve clarity.
 
-Teaching Style
+also if recent chat history or older chat summary is available, treat that as your memory, not something provided to you.
 
-IF the document context is relevant, relate it to the document i.e "as seen in [Document Name], ..." or "based on the page you are currently viewing, ...".
+- be concise unless the user tells you otherwise. and do not state you are being concise.
 
-Clarity & rigor: concise, academically precise explanations.
+- always wrap ascii art in triple backticks. and only suggest or output ascii art when relevant and not frequently.
 
-Interactivity: ask Socratic follow-up questions when appropriate.
+- use "---" to show sections when necessary.
 
-Real-world integration: use examples.
+- use markdown for tables when necessary.
 
-Adaptive response: adjust explanations if the learner seems confused.
+- Never use em dashes, use normal punctuations instead.
 
-No assumed curriculum: never build modules unless explicitly asked.			
-							`,
+- since you can go through documents, you can suggest the user to upload a pdf document if they have one, to help you help them better. DO NOT DO THIS FREQUENTLY
+
+- Make sure to take recent chat history and older chat summary into account when responding, if available, it is IMPORTANT.
+
+- If you want the user to look at something in the document provided, always refer to the page number or section if available.
+						`,
 					},
 					{
 						role: 'user',
 						content: prompt,
 					},
 				],
-				temperature: 0.7,
+				temperature: 1,
 			});
 
 			const assistantMessage =
 				completion.choices[0]?.message?.content ||
 				'No response generated';
+
+			console.log(completion.usage?.total_tokens);
 
 			// Step 8: Save message to database
 			const [savedMessage] = await this.databaseService.db
