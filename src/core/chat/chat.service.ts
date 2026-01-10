@@ -192,6 +192,7 @@ export class ChatService {
 			chatId = newChatId;
 		}
 
+		console.log(1)
 		// Get or create collection
 		const collection = await this.getOrCreateCollection();
 
@@ -239,6 +240,8 @@ export class ChatService {
 					});
 				}
 
+
+		console.log(2)
 				// Step 2: Chunk text using RecursiveCharacterTextSplitter
 				const textSplitter = new RecursiveCharacterTextSplitter({
 					chunkSize: 1000,
@@ -261,6 +264,8 @@ export class ChatService {
 					});
 				}
 
+		console.log(3)
+
 				// Step 3: Generate S3 key and save document metadata to database first
 				const s3Key = this.s3Service.generateKey(
 					userId,
@@ -281,6 +286,8 @@ export class ChatService {
 					})
 					.returning();
 
+		console.log(4)
+
 				// Upload file to S3 in a non-blocking way (fire and forget with error handling)
 				this.s3Service
 					.uploadObject('user-docs', s3Key, fileBuffer, file.mimetype)
@@ -293,6 +300,8 @@ export class ChatService {
 						);
 						// Optionally: Add logic to mark document as failed upload in database
 					});
+
+		console.log(5)
 
 				// Step 4: Generate embeddings for all chunks
 				const chunkTexts = allChunks.map((c) => c.text);
@@ -323,6 +332,9 @@ export class ChatService {
 					metadatas,
 					documents: chromaDocs,
 				});
+
+		console.log(6)
+
 
 				results.success.push({
 					id: documentRecord.id,
