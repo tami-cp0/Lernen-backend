@@ -18,17 +18,15 @@ async function bootstrap() {
 
 	app.set('trust proxy', true);
 
-	app.use(
-		helmet({
-			crossOriginResourcePolicy: { policy: 'cross-origin' },
-		})
-	);
+	app.use(helmet());
 
 	const frontendUrl = config.get<AppConfigType>('app')!.frontendUrl!;
 
 	const corsOptions = {
 		origin: ['http://localhost:3000', 'http://127.0.0.1:3000', frontendUrl],
 		credentials: true,
+		methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+		allowedHeaders: ['Content-Type', 'Authorization'],
 	};
 
 	app.enableCors(corsOptions);
