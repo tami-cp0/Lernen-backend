@@ -12,53 +12,62 @@ import axios from 'axios';
 config();
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+	const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  const config = app.get(ConfigService);
+	const config = app.get(ConfigService);
 
-  const corsOptions = {
-    origin: [
-      'http://localhost:3000', `${config.get<AppConfigType>('app')!.frontendUrl}`, 'http://127.0.0.1:3000'
-    ],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS', 'DELETE'],
-    credentials: true,
-  }
+	app.set('trust proxy', true);
 
-  app.enableCors(corsOptions);
+	app.use(
+		helmet({
+			crossOriginResourcePolicy: { policy: 'cross-origin' },
+		})
+	);
 
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    transformOptions: { enableImplicitConversion: true },
-    dismissDefaultMessages: true,
-    validationError: {
-      target: true,
-      value: true
-    },
-    stopAtFirstError: true,
-    whitelist: true,
-    forbidNonWhitelisted: true
-  }));
+	const frontendUrl = config.get<AppConfigType>('app')!.frontendUrl!;
 
-  app.setGlobalPrefix('api/v1');
+	const corsOptions = {
+		origin: [
+			'http://localhost:3000',
+			'http://127.0.0.1:3000',
+			frontendUrl,
+		],
+		credentials: true,
+	};
 
-  setupSwagger(app);
+	app.enableCors(corsOptions);
 
-  app.enableShutdownHooks();
+	app.useGlobalPipes(
+		new ValidationPipe({
+			transform: true,
+			transformOptions: { enableImplicitConversion: true },
+			dismissDefaultMessages: true,
+			validationError: {
+				target: true,
+				value: true,
+			},
+			stopAtFirstError: true,
+			whitelist: true,
+			forbidNonWhitelisted: true,
+		})
+	);
 
-  app.set('trust proxy', true);
+	app.setGlobalPrefix('api/v1');
 
-  app.use(helmet());
-  
-  // Simple request logger middleware
+	setupSwagger(app);
+
+	app.enableShutdownHooks();
+
+	// Simple request logger middleware
 	app.use((req, res, next) => {
 		const timestamp = new Date().toISOString();
 		Logger.log(`[${timestamp}] ${req.method} ${req.url}`, 'HTTP');
 		next();
 	});
 
-  const port = config.get<AppConfigType>('app')!.port || 3000;
-  await app.listen(port);
+	const port = config.get<AppConfigType>('app')!.port || 3000;
+	await app.listen(port);
 
-  Logger.log(`Application is running on: http://localhost:${port}/api/v1`);  
+	Logger.log(`Application is running on: http://localhost:${port}/api/v1`);
 }
 bootstrap();
