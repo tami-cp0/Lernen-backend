@@ -5,20 +5,12 @@ import {
 	HttpStatus,
 } from '@nestjs/common';
 import { MulterError } from 'multer';
-import { Response } from 'express';
 
 @Catch(MulterError)
 export class MulterExceptionFilter implements ExceptionFilter {
 	catch(exception: MulterError, host: ArgumentsHost) {
 		const ctx = host.switchToHttp();
-		const res = ctx.getResponse<Response>();
-
-		// Set CORS headers manually since exception bypasses normal flow
-		const origin = ctx.getRequest().headers.origin;
-		if (origin) {
-			res.setHeader('Access-Control-Allow-Origin', origin);
-			res.setHeader('Access-Control-Allow-Credentials', 'true');
-		}
+		const res = ctx.getResponse();
 
 		if (exception.code === 'LIMIT_FILE_SIZE') {
 			res.status(HttpStatus.PAYLOAD_TOO_LARGE).json({

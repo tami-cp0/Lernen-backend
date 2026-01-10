@@ -27,11 +27,7 @@ async function bootstrap() {
 	const frontendUrl = config.get<AppConfigType>('app')!.frontendUrl!;
 
 	const corsOptions = {
-		origin: [
-			'http://localhost:3000',
-			'http://127.0.0.1:3000',
-			frontendUrl,
-		],
+		origin: ['http://localhost:3000', 'http://127.0.0.1:3000', frontendUrl],
 		credentials: true,
 	};
 
