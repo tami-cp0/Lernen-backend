@@ -1,5 +1,5 @@
 import { ConfigType } from "@nestjs/config";
-import { AppConfig, ChromaConfig, DatabaseConfig, ForgotPasswordJwtConfig, GmailConfig, GoogleConfig, JwtConfig, OpenAIConfig, RefreshJwtConfig, s3Config } from "./config";
+import { AppConfig, ChromaConfig, DatabaseConfig, ForgotPasswordJwtConfig, GmailConfig, GoogleConfig, JwtConfig, OpenAIConfig, redisConfig, RefreshJwtConfig, s3Config } from "./config";
 import { Config } from "drizzle-kit";
 
 export enum Environment {
@@ -28,3 +28,5 @@ export type GoogleConfigType = ConfigType<typeof GoogleConfig>;
 export type ChromaConfigType = ConfigType<typeof ChromaConfig>;
 
 export type s3ConfigType = ConfigType<typeof s3Config>;
+
+export type RedisConfigType = ConfigType<typeof redisConfig>;

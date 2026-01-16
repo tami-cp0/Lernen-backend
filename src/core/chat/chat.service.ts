@@ -3,6 +3,7 @@ import {
 	ConflictException,
 	Injectable,
 	InternalServerErrorException,
+	Sse,
 	UploadedFiles,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -19,6 +20,9 @@ import { CloudClient } from 'chromadb';
 import { S3Service } from 'src/common/services/s3/s3.service';
 import { ChatCompletion } from 'openai/resources/chat';
 import { ContextGeneratorService } from './helpers/contextGenerator';
+import { Observable } from 'rxjs';
+import { MessageEvent } from '@nestjs/common';
+import { CacheService } from 'src/common/services/cache/cache.service';
 
 /**
  * Custom OpenAI Embedding Function for ChromaDB
@@ -34,6 +38,7 @@ class OpenAIEmbeddingFunction {
 		const response = await this.openai.embeddings.create({
 			model: 'text-embedding-3-small',
 			input: texts,
+			dimensions: 1024, // Max = 1536
 		});
 		return response.data.map((item) => item.embedding);
 	}
@@ -48,12 +53,14 @@ export class ChatService {
 	private readonly DEFAULT_CHAT_NAME = 'New Chat';
 	private readonly CHAT_TITLE_MAX_LENGTH = 28; // Fits in 220px - frontend specifications
 	private readonly MODEL = 'gpt-5-mini';
+	private collectionCache: any = null; // Cache the collection reference
 
 	constructor(
 		private configService: ConfigService,
 		private databaseService: DatabaseService,
 		private s3Service: S3Service,
-		private contextGenerator: ContextGeneratorService
+		private contextGenerator: ContextGeneratorService,
+		private cacheService: CacheService
 	) {
 		const openaiKey =
 			this.configService.get<OpenAIConfigType>('openai')!.key!;
@@ -70,6 +77,25 @@ export class ChatService {
 			database:
 				this.configService.get<ChromaConfigType>('chroma')!.database,
 		});
+
+		// Initialize collection cache
+		this.initializeCollection();
+	}
+
+	/**
+	 * Initialize and cache the collection reference
+	 */
+	private async initializeCollection() {
+		try {
+			this.collectionCache =
+				await this.chromaClient.getOrCreateCollection({
+					name: this.collectionName,
+					metadata: { 'hnsw:space': 'cosine' },
+					embeddingFunction: this.embeddingFunction,
+				});
+		} catch (error) {
+			console.error('Error initializing collection cache:', error);
+		}
 	}
 
 	/**
@@ -79,20 +105,27 @@ export class ChatService {
 		const response = await this.openai.embeddings.create({
 			model: 'text-embedding-3-small',
 			input: texts,
+			dimensions: 1024, // max = 1536
 		});
 		return response.data.map((item) => item.embedding);
 	}
 
 	/**
-	 * Helper: Get or create collection
+	 * Helper: Get or create collection (use cache if available)
 	 */
 	private async getOrCreateCollection() {
+		if (this.collectionCache) {
+			return this.collectionCache;
+		}
+
 		try {
-			return await this.chromaClient.getOrCreateCollection({
-				name: this.collectionName,
-				metadata: { 'hnsw:space': 'cosine' },
-				embeddingFunction: this.embeddingFunction,
-			});
+			this.collectionCache =
+				await this.chromaClient.getOrCreateCollection({
+					name: this.collectionName,
+					metadata: { 'hnsw:space': 'cosine' },
+					embeddingFunction: this.embeddingFunction,
+				});
+			return this.collectionCache;
 		} catch (error) {
 			console.error('Error getting/creating collection:', error);
 			throw new InternalServerErrorException(
@@ -358,12 +391,11 @@ export class ChatService {
 	 * Send message with RAG using ChromaDB directly
 	 * Flow: Query → Retrieve similar chunks → LLM response with context
 	 */
-	async sendMessageNonApi(
+	async sendBufferedMessage(
 		chatId: string | 'new',
 		message: string,
 		userId: string,
 		selectedDocumentIds?: string[],
-		helpful?: boolean,
 		pageNumber?: number,
 		pageContent?: string
 	) {
@@ -445,7 +477,9 @@ export class ChatService {
 						message,
 						chatId,
 						userId,
-						selectedDocumentIds
+						selectedDocumentIds,
+						this.openai,
+						messages
 					);
 				context = result.context;
 				retrievedMetadatas = result.retrievedMetadatas;
@@ -527,7 +561,6 @@ also if recent chat history or older chat summary is available, treat that as yo
 						assistant: assistantMessage,
 					},
 					totalTokens: completion.usage?.total_tokens || 0,
-					helpful: helpful ?? null,
 				})
 				.returning();
 
@@ -552,6 +585,305 @@ also if recent chat history or older chat summary is available, treat that as yo
 				err instanceof Error ? err.message : 'Error processing message'
 			);
 		}
+	}
+
+	async createStreamSession(
+		chatId: string | 'new',
+		message: string,
+		userId: string,
+		authToken: string,
+		selectedDocumentIds?: string[],
+		pageNumber?: number,
+		pageContent?: string
+	) {
+		try {
+			const streamSessionId = await this.cacheService.storeStreamSessionData(
+				chatId,
+				message,
+				userId,
+				authToken,
+				selectedDocumentIds,
+				pageNumber,
+				pageContent
+			);
+
+			return {
+				message: 'Stream session created',
+				data: { streamSessionId }
+			}
+		} catch (error) {
+			throw new InternalServerErrorException(
+				'Failed to create stream session'
+			);
+		}
+	}
+
+	/**
+	 * Send message with streaming response
+	 */
+	streamMessage(
+		chatId: string,
+		userId: string,
+	): Observable<MessageEvent> {
+		return new Observable<MessageEvent>((observer) => {
+			const controller = new AbortController();
+
+			(async () => {
+				try {
+					const user = await this.databaseService.db.query.users.findFirst({
+							where: eq(users.id, userId),
+						});
+
+					const session = await this.cacheService.getStreamSessionData(
+						chatId, userId
+					);
+
+					if (!session) {
+						throw new BadRequestException('Stream session not found');
+					}
+
+					const {
+						message,
+						selectedDocumentIds,
+						pageNumber,
+						pageContent,
+					} = session;
+
+					// Verify chat exists and belongs to user
+					const chat =
+						await this.databaseService.db.query.chats.findFirst({
+							where: and(
+								eq(chats.id, chatId),
+								eq(chats.userId, userId)
+							),
+							with: { documents: true },
+						});
+
+					if (!chat) {
+						observer.error(
+							new BadRequestException('Chat not found')
+						);
+						return;
+					}
+
+					// Update chat title asynchronously (non-blocking)
+					if (chat.title === this.DEFAULT_CHAT_NAME) {
+						this.databaseService.db
+							.update(chats)
+							.set({
+								title: message.slice(
+									0,
+									this.CHAT_TITLE_MAX_LENGTH
+								),
+							})
+							.where(eq(chats.id, chatId))
+							.catch((err) => {
+								console.error(
+									'Error updating chat title:',
+									err
+								);
+							});
+					}
+
+					// Get count first to determine if we need all messages for summary generation
+					const count = await this.databaseService.db.$count(
+						chatMessages,
+						eq(chatMessages.chatId, chatId)
+					);
+
+					const needsSummaryGeneration = count % 6 === 1 && count > 4;
+
+					// Fetch all messages if summary generation is needed, otherwise just last 4
+					const messages = needsSummaryGeneration
+							? await this.databaseService.db
+									.select()
+									.from(chatMessages)
+									.where(eq(chatMessages.chatId, chatId))
+									.orderBy(chatMessages.createdAt)
+							: await this.databaseService.db
+									.select()
+									.from(chatMessages)
+									.where(eq(chatMessages.chatId, chatId))
+									.orderBy(desc(chatMessages.createdAt))
+									.limit(4)
+									.then((msgs) => msgs.reverse());
+
+					const recentHistory =
+						this.contextGenerator.formatRecentHistory(messages);
+
+					// Generate summary asynchronously (non-blocking)
+					if (needsSummaryGeneration) {
+						this.contextGenerator
+							.generateSummary(
+								this.openai,
+								chatId,
+								count,
+								messages,
+								this.MODEL
+							)
+							.catch((err) => {
+								console.error(
+									`Failed to generate summary for chat ${chatId}:`,
+									err
+								);
+							});
+					}
+
+					const shouldRetrieve =
+						chat.documents &&
+						chat.documents.length > 0 &&
+						selectedDocumentIds &&
+						selectedDocumentIds.length > 0;
+
+					// Parallelize summary fetching and document retrieval
+					const [olderSummaryText, retrievalResult] =
+						await Promise.all([
+							// Fetch summary only if there are enough messages
+							count > 4
+								? this.contextGenerator.getLatestSummary(chatId)
+								: Promise.resolve(''),
+							// Retrieve documents if needed
+							shouldRetrieve
+								? (async () => {
+										const collection =
+											await this.getOrCreateCollection();
+										return this.contextGenerator.retrieveDocumentContext(
+											collection,
+											this.generateEmbeddings.bind(this),
+											message,
+											chatId,
+											userId,
+											selectedDocumentIds,
+											this.openai,
+											messages
+										);
+								  })()
+								: Promise.resolve({
+										context: '',
+										retrievedMetadatas: [],
+										retrievedDocs: [],
+								  }),
+						]);
+
+					const context = retrievalResult.context;
+					const retrievedMetadatas =
+						retrievalResult.retrievedMetadatas;
+					const retrievedDocs = retrievalResult.retrievedDocs;
+
+					const prompt = this.contextGenerator.buildPrompt(
+						user?.educationLevel,
+						recentHistory,
+						olderSummaryText,
+						context,
+						message,
+						pageNumber,
+						pageContent
+					);
+
+					console.log(prompt);
+
+					// Start streaming
+					let fullText = '';
+					const completionStream = await this.openai.responses.create(
+						{
+							model: this.MODEL,
+							input: [
+								{
+									role: 'system',
+									content: `
+
+You are a document-grounded assistant that helps users understand and reason about their uploaded documents.
+
+When a document is provided, you must ground your responses strictly in the document's content.
+Use the document as the primary and authoritative source.
+
+examples: "based on your document...", "you can also find this on <page number>", "this page covers...is that what you are looking for?" etc. only state document name if multiple documents are provided.
+
+If page numbers or document names are not available, do not fabricate them and simply answer without citation.
+If a user's question cannot be answered from the document, clearly state that the information is not present in the provided material.
+Do not introduce information not supported by the document unless explicitly requested.
+
+you cannot search the web, you cannot provide images only ascii art, you are not an assistant primarily for coding etc. this info is just for you and not the user.
+
+
+also if recent chat history or older chat summary is available, treat that as your memory, not something provided to you.
+
+- be concise unless the user tells you otherwise. and do not state you are being concise.
+
+- always wrap ascii art in triple backticks. and only suggest or output ascii art when relevant and not frequently.
+
+- use "---" to show sections when necessary.
+
+- use markdown for tables when necessary.
+
+- Never use em dashes, use normal punctuations instead.
+
+- since you can go through documents, you can suggest the user to upload a pdf document if they have one, to help you help them better. DO NOT DO THIS FREQUENTLY
+
+- Make sure to take recent chat history and older chat summary into account when responding, if available, it is IMPORTANT.
+
+- If you want the user to look at something in the document provided, always refer to the page number or section if available.
+									`,
+								},
+								{
+									role: 'user',
+									content: prompt,
+								},
+							],
+							temperature: 1,
+							stream: true,
+						},
+						{ signal: controller.signal }
+					);
+
+					// Stream the response chunks
+					for await (const event of completionStream) {
+						console.log(
+							'Event type:',
+							event.type,
+							'Event:',
+							JSON.stringify(event)
+						);
+						if (event.type === 'response.output_text.delta') {
+							fullText += event.delta;
+							console.log(event.delta);
+							observer.next({ data: event.delta });
+						}
+					}
+
+					// Save message to database in background after streaming completes
+					this.databaseService.db
+						.insert(chatMessages)
+						.values({
+							chatId,
+							turn: {
+								user: message,
+								assistant: fullText,
+							},
+							totalTokens: 0, // Streaming doesn't provide token counts easily
+							helpful: null,
+						})
+						.catch((err) => {
+							console.error(
+								'Error saving message to database:',
+								err
+							);
+						});
+
+					observer.next({
+						data: JSON.stringify({ type: 'done' }),
+					});
+					observer.complete();
+				} catch (err) {
+					console.error('Error sending message:', err);
+					observer.error(err);
+				}
+			})();
+
+			return () => {
+				controller.abort();
+			};
+		});
 	}
 
 	async removeDocument(chatId: string, documentId: string, userId: string) {

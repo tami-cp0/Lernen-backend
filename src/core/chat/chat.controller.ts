@@ -8,6 +8,7 @@ import {
 	Patch,
 	Post,
 	Req,
+	Sse,
 	UploadedFiles,
 	UseFilters,
 	UseGuards,
@@ -19,7 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt/jwt.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import ChatIdParamDTO from './dto/chatid.dto';
 import RemoveDocBodyDTO from './dto/removeDoc.dto';
-import SendMessageBodyDTO from './dto/sendMessage.dto';
+import sendMessageDTO from './dto/sendMessage.dto';
 import { UploadDocBodyDTO, UploadDocumentResponseDTO } from './dto/upload.dto';
 import { MulterExceptionFilter } from '../../common/filters/multer.filter';
 import {
@@ -309,6 +310,40 @@ export class ChatController {
 		return await this.chatService.deleteChat(param.chatId!, req.user!.id);
 	}
 
+	// @UseGuards(JwtAuthGuard) temporary disabled for testing SSE without auth
+	@Post(':chatId/sse/create-stream-session')
+	async createStreamSession(
+		@Param() param: ChatIdParamDTO,
+		@Body() body: sendMessageDTO,
+		@Req() req: Request
+	) {
+		const token =
+			req.headers.authorization?.split(' ')[1] ||
+			req.query.token as string || '';
+
+		return await this.chatService.createStreamSession(
+			param.chatId,
+			body.message,
+			req.user!.id,
+			token,
+			body.selectedDocumentIds,
+			body.pageNumber,
+			body.pageContent
+		);
+	}
+
+	@UseGuards(JwtAuthGuard)
+	@Sse(':chatId/sse/stream-message')
+	streamMessage(
+		@Param() param: ChatIdParamDTO,
+		@Req() req: Request
+	) {
+		return this.chatService.streamMessage(
+			param.chatId,
+			req.user!.id
+		);
+	}
+
 	@ApiOperation({
 		summary: 'Send a message to a chat',
 		description: `
@@ -366,18 +401,17 @@ export class ChatController {
 	})
 	@ApiDefaultDocProtected()
 	@UseGuards(JwtAuthGuard)
-	@Post(':chatId/send-message')
-	async sendMessage(
+	@Sse(':chatId/send-buffered-message')
+	async sendBufferedMessage(
 		@Param() param: ChatIdParamDTO,
-		@Body() body: SendMessageBodyDTO,
+		@Body() body: sendMessageDTO,
 		@Req() req: Request
 	) {
-		return await this.chatService.sendMessageNonApi(
+		return await this.chatService.sendBufferedMessage(
 			param.chatId,
 			body.message,
 			req.user!.id,
 			body.selectedDocumentIds,
-			body.helpful,
 			body.pageNumber,
 			body.pageContent
 		);

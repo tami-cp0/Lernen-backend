@@ -12,6 +12,7 @@ import { ChatModule } from './core/chat/chat.module';
 import { UserModule } from './core/user/user.module';
 import { AppController } from './app.controller';
 import { S3Module } from './common/services/s3/s3.module';
+import { CacheModule } from './common/services/cache/cache.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { S3Module } from './common/services/s3/s3.module';
     EmailModule,
     ChatModule,
     UserModule,
+    CacheModule
   ],
   controllers: [AppController],
   providers: [

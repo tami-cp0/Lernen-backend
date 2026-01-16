@@ -121,6 +121,15 @@ class EnvironmentVariables {
   @IsString({ message: 'TEBI_SECRET_KEY must be a string' })
   @IsNotEmpty({ message: 'TEBI_SECRET_KEY is required and cannot be empty' })
   TEBI_SECRET_KEY: string;
+
+  // Redis
+  @IsString({ message: 'UPSTASH_REDIS_URL must be a string' })
+  @IsNotEmpty({ message: 'UPSTASH_REDIS_URL is required and cannot be empty' })
+  UPSTASH_REDIS_URL: string;
+
+  @IsString({ message: 'UPSTASH_REDIS_TOKEN must be a string' })
+  @IsNotEmpty({ message: 'UPSTASH_REDIS_TOKEN is required and cannot be empty' })
+  UPSTASH_REDIS_TOKEN: string;
 }
 
 

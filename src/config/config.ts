@@ -86,6 +86,18 @@ export const s3Config = registerAs(
     })
 )
 
+console.log(process.env.CHROMA_API_KEY)
+console.log('TEBI Token:', process.env.TEBI_S3_ENPOINT);
+console.log('Redis URL:', process.env.UPSTASH_REDIS_URL);
+
+export const redisConfig = registerAs(
+    'redis',
+    () => ({
+        url: process.env.UPSTASH_REDIS_URL,
+        token: process.env.UPSTASH_REDIS_TOKEN,
+    })
+)
+
 export const configurations = [
     AppConfig,  
     DatabaseConfig,
