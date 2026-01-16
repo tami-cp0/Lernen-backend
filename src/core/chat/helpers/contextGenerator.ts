@@ -55,14 +55,15 @@ ${historyToSummarize}
 		`;
 
 		const summaryAICompletion = await openai.chat.completions.create({
-			model,
+			model: 'gpt-5-nano',
 			messages: [
 				{
 					role: 'user',
 					content: memGenerationPrompt,
 				},
 			],
-			temperature: 1,
+			temperature: 0.3,
+			max_completion_tokens: 700,
 		});
 
 		const summaryAIResponse =
@@ -96,19 +97,80 @@ ${historyToSummarize}
 		return latestSummary?.summary || '';
 	}
 
+	async rewriteQuery(
+		openai: OpenAI,
+		message: string,
+		messages: Array<{ turn: { user: string; assistant: string } }>
+	): Promise<string> {
+		// Get last 2 turns for context
+		const lastTwoTurns = messages.slice(-2);
+
+		if (lastTwoTurns.length === 0) {
+			// No context, return original query
+			return message;
+		}
+
+		const conversationContext = lastTwoTurns
+			.map((m) => `User: ${m.turn.user}\nAssistant: ${m.turn.assistant}`)
+			.join('\n\n');
+
+		const rewritePrompt = `Given the following conversation context and a new user query, rewrite the query to be more specific and contextually relevant for document retrieval.
+
+Conversation context:
+${conversationContext}
+
+New user query: ${message}
+
+Rewrite the query to include relevant context from the conversation that would help retrieve the most relevant documents. If the query is already clear and specific, you may return it as is. Only return the rewritten query, nothing else.`;
+
+		try {
+			const completion = await openai.chat.completions.create({
+				model: 'gpt-5-nano',
+				messages: [
+					{
+						role: 'user',
+						content: rewritePrompt,
+					},
+				],
+				temperature: 0.3,
+				max_completion_tokens: 300,
+			});
+
+			const rewrittenQuery =
+				completion?.choices[0]?.message?.content?.trim();
+			return rewrittenQuery || message;
+		} catch (error) {
+			console.error('Error rewriting query:', error);
+			// Fallback to original message if rewriting fails
+			return message;
+		}
+	}
+
 	async retrieveDocumentContext(
 		collection: Collection,
 		generateEmbeddings: (texts: string[]) => Promise<number[][]>,
 		message: string,
 		chatId: string,
 		userId: string,
-		selectedDocumentIds: string[]
+		selectedDocumentIds: string[],
+		openai: OpenAI,
+		messages: Array<{ turn: { user: string; assistant: string } }>
 	): Promise<{
 		context: string;
 		retrievedMetadatas: any[];
 		retrievedDocs: any[];
 	}> {
-		const [queryEmbedding] = await generateEmbeddings([message]);
+		// Rewrite query using conversation context
+		const rewrittenQuery = await this.rewriteQuery(
+			openai,
+			message,
+			messages
+		);
+
+		console.log('Original query:', message);
+		console.log('Rewritten query:', rewrittenQuery);
+
+		const [queryEmbedding] = await generateEmbeddings([rewrittenQuery]);
 
 		const whereFilter: Record<string, any> = {
 			$and: [
