@@ -7,8 +7,10 @@ import {
 	Param,
 	Patch,
 	Post,
+	Query,
 	Req,
 	Sse,
+	UnauthorizedException,
 	UploadedFiles,
 	UseFilters,
 	UseGuards,
@@ -310,16 +312,19 @@ export class ChatController {
 		return await this.chatService.deleteChat(param.chatId!, req.user!.id);
 	}
 
-	// @UseGuards(JwtAuthGuard) temporary disabled for testing SSE without auth
+	@UseGuards(JwtAuthGuard)
 	@Post(':chatId/sse/create-stream-session')
 	async createStreamSession(
 		@Param() param: ChatIdParamDTO,
 		@Body() body: sendMessageDTO,
-		@Req() req: Request
+		@Req() req: Request,
 	) {
 		const token =
-			req.headers.authorization?.split(' ')[1] ||
-			req.query.token as string || '';
+			req.headers.authorization?.split(' ')[1];
+
+		if (!token) {
+		  throw new UnauthorizedException('Missing auth token');
+		}
 
 		return await this.chatService.createStreamSession(
 			param.chatId,
@@ -332,15 +337,13 @@ export class ChatController {
 		);
 	}
 
-	@UseGuards(JwtAuthGuard)
+	// @UseGuards(JwtAuthGuard) disabled for SSE without auth
 	@Sse(':chatId/sse/stream-message')
 	streamMessage(
 		@Param() param: ChatIdParamDTO,
-		@Req() req: Request
 	) {
 		return this.chatService.streamMessage(
 			param.chatId,
-			req.user!.id
 		);
 	}
 

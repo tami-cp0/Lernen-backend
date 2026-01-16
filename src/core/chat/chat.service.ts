@@ -623,19 +623,14 @@ also if recent chat history or older chat summary is available, treat that as yo
 	 */
 	streamMessage(
 		chatId: string,
-		userId: string,
 	): Observable<MessageEvent> {
 		return new Observable<MessageEvent>((observer) => {
 			const controller = new AbortController();
 
 			(async () => {
 				try {
-					const user = await this.databaseService.db.query.users.findFirst({
-							where: eq(users.id, userId),
-						});
-
 					const session = await this.cacheService.getStreamSessionData(
-						chatId, userId
+						chatId
 					);
 
 					if (!session) {
@@ -647,6 +642,7 @@ also if recent chat history or older chat summary is available, treat that as yo
 						selectedDocumentIds,
 						pageNumber,
 						pageContent,
+						userId
 					} = session;
 
 					// Verify chat exists and belongs to user
@@ -694,7 +690,8 @@ also if recent chat history or older chat summary is available, treat that as yo
 					const needsSummaryGeneration = count % 6 === 1 && count > 4;
 
 					// Fetch all messages if summary generation is needed, otherwise just last 4
-					const messages = needsSummaryGeneration
+					const [messages, user] = await Promise.all([
+						needsSummaryGeneration
 							? await this.databaseService.db
 									.select()
 									.from(chatMessages)
@@ -706,7 +703,11 @@ also if recent chat history or older chat summary is available, treat that as yo
 									.where(eq(chatMessages.chatId, chatId))
 									.orderBy(desc(chatMessages.createdAt))
 									.limit(4)
-									.then((msgs) => msgs.reverse());
+									.then((msgs) => msgs.reverse()),
+						await this.databaseService.db.query.users.findFirst({
+							where: eq(users.id, userId),
+						})
+					])
 
 					const recentHistory =
 						this.contextGenerator.formatRecentHistory(messages);
@@ -870,6 +871,8 @@ also if recent chat history or older chat summary is available, treat that as yo
 							);
 						});
 
+					// initiate completion
+					await this.cacheService.deleteStreamSessionData(chatId);
 					observer.next({
 						data: JSON.stringify({ type: 'done' }),
 					});

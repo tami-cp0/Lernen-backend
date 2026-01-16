@@ -86,10 +86,6 @@ export const s3Config = registerAs(
     })
 )
 
-console.log(process.env.CHROMA_API_KEY)
-console.log('TEBI Token:', process.env.TEBI_S3_ENPOINT);
-console.log('Redis URL:', process.env.UPSTASH_REDIS_URL);
-
 export const redisConfig = registerAs(
     'redis',
     () => ({
@@ -108,4 +104,6 @@ export const configurations = [
     ForgotPasswordJwtConfig,
     GoogleConfig,
     ChromaConfig,
+    s3Config,
+    redisConfig,
 ];

@@ -6,11 +6,13 @@ import * as multer from 'multer';
 import { DatabaseModule } from 'src/database/database.module';
 import { S3Module } from 'src/common/services/s3/s3.module';
 import { ContextGeneratorService } from './helpers/contextGenerator';
+import { CacheModule } from 'src/common/services/cache/cache.module';
 
 @Module({
 	imports: [
 		DatabaseModule,
 		S3Module,
+		CacheModule,
 		/*
     Middleware level limiting because the web app
     only accepts document uploads to the chat

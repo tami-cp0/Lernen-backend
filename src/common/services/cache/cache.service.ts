@@ -40,7 +40,7 @@ export class CacheService {
 		pageContent?: string,
 		expirationSeconds = 3600
 	): Promise<string> {
-		const key = `${this.streamSessionPrefix}:${chatId}:${userId}`;
+		const key = `${this.streamSessionPrefix}:${chatId}`;
 		const value: StreamSessionData = {
 			chatId,
 			userId,
@@ -64,12 +64,11 @@ export class CacheService {
 	 */
 	async getStreamSessionData(
 		chatId: string,
-		userId: string
 	): Promise<StreamSessionData | null> {
-		const key = `${this.streamSessionPrefix}:${chatId}:${userId}`;
-		const data = await this.redis.get<string>(key);
+		const key = `${this.streamSessionPrefix}:${chatId}`;
+		const data = await this.redis.get<StreamSessionData>(key);
 
-		return data ? JSON.parse(data) : null;
+		return data;
 	}
 
 	/**
@@ -77,9 +76,8 @@ export class CacheService {
 	 */
 	async deleteStreamSessionData(
 		chatId: string,
-		userId: string
 	): Promise<void> {
-		const key = `${this.streamSessionPrefix}:${chatId}:${userId}`;
+		const key = `${this.streamSessionPrefix}:${chatId}`;
 		await this.redis.del(key);
 	}
 }
