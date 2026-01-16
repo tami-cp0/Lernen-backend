@@ -9,7 +9,8 @@ import {
 	IsUUID,
 } from 'class-validator';
 
-export class SendMessageBodyDTO {
+// used for both streaming and non-streaming message sending
+export class sendMessageDTO {
 	@ApiProperty({
 		description: 'The message content',
 		example: 'Hello, World!',
@@ -66,4 +67,4 @@ export class SendMessageBodyDTO {
 	pageContent?: string;
 }
 
-export default SendMessageBodyDTO;
+export default sendMessageDTO;
