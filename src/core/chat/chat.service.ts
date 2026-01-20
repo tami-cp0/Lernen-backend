@@ -38,7 +38,7 @@ class OpenAIEmbeddingFunction {
 		const response = await this.openai.embeddings.create({
 			model: 'text-embedding-3-small',
 			input: texts,
-			dimensions: 1024, // Max = 1536
+			dimensions: 1536, // Max = 1536
 		});
 		return response.data.map((item) => item.embedding);
 	}
@@ -105,7 +105,7 @@ export class ChatService {
 		const response = await this.openai.embeddings.create({
 			model: 'text-embedding-3-small',
 			input: texts,
-			dimensions: 1024, // max = 1536
+			dimensions: 1536, // max = 1536
 		});
 		return response.data.map((item) => item.embedding);
 	}
