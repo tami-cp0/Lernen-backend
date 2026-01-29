@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI, { toFile } from 'openai';
+import { ChatCompletion } from 'openai/resources';
 import * as fs from 'fs';
 import { DatabaseService } from 'src/database/database.service';
 import { documents } from 'src/database/schema/documents';
@@ -18,7 +19,6 @@ import { chatMessages, chats, chatSummaries, users } from 'src/database/schema';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CloudClient } from 'chromadb';
 import { S3Service } from 'src/common/services/s3/s3.service';
-import { ChatCompletion } from 'openai/resources/chat';
 import { ContextGeneratorService } from './helpers/contextGenerator';
 import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
