@@ -242,6 +242,13 @@ export class ChatService {
 				const fileBuffer = fs.readFileSync(file.path);
 
 				// Extract text from PDF using pdfjs-dist (page-by-page)
+				// Setup Node.js polyfills for pdfjs-dist
+				const canvas = await import('canvas');
+				if (!globalThis.DOMMatrix) {
+					const { DOMMatrix } = canvas;
+					globalThis.DOMMatrix = DOMMatrix as any;
+				}
+
 				// Dynamic import for ES module
 				const pdfjsLib = await import(
 					'pdfjs-dist/legacy/build/pdf.mjs'
@@ -597,20 +604,21 @@ also if recent chat history or older chat summary is available, treat that as yo
 		pageContent?: string
 	) {
 		try {
-			const streamSessionId = await this.cacheService.storeStreamSessionData(
-				chatId,
-				message,
-				userId,
-				authToken,
-				selectedDocumentIds,
-				pageNumber,
-				pageContent
-			);
+			const streamSessionId =
+				await this.cacheService.storeStreamSessionData(
+					chatId,
+					message,
+					userId,
+					authToken,
+					selectedDocumentIds,
+					pageNumber,
+					pageContent
+				);
 
 			return {
 				message: 'Stream session created',
-				data: { streamSessionId }
-			}
+				data: { streamSessionId },
+			};
 		} catch (error) {
 			throw new InternalServerErrorException(
 				'Failed to create stream session'
@@ -621,20 +629,19 @@ also if recent chat history or older chat summary is available, treat that as yo
 	/**
 	 * Send message with streaming response
 	 */
-	streamMessage(
-		chatId: string,
-	): Observable<MessageEvent> {
+	streamMessage(chatId: string): Observable<MessageEvent> {
 		return new Observable<MessageEvent>((observer) => {
 			const controller = new AbortController();
 
 			(async () => {
 				try {
-					const session = await this.cacheService.getStreamSessionData(
-						chatId
-					);
+					const session =
+						await this.cacheService.getStreamSessionData(chatId);
 
 					if (!session) {
-						throw new BadRequestException('Stream session not found');
+						throw new BadRequestException(
+							'Stream session not found'
+						);
 					}
 
 					const {
@@ -642,7 +649,7 @@ also if recent chat history or older chat summary is available, treat that as yo
 						selectedDocumentIds,
 						pageNumber,
 						pageContent,
-						userId
+						userId,
 					} = session;
 
 					// Verify chat exists and belongs to user
@@ -706,8 +713,8 @@ also if recent chat history or older chat summary is available, treat that as yo
 									.then((msgs) => msgs.reverse()),
 						await this.databaseService.db.query.users.findFirst({
 							where: eq(users.id, userId),
-						})
-					])
+						}),
+					]);
 
 					const recentHistory =
 						this.contextGenerator.formatRecentHistory(messages);
