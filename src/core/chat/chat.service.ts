@@ -24,7 +24,6 @@ import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
 import { CacheService } from 'src/common/services/cache/cache.service';
 
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { TextContent, TextItem } from 'pdfjs-dist/types/src/display/api';
 
 /**
@@ -225,6 +224,9 @@ export class ChatService {
 				// Extract text from PDF using pdfjs-dist (page-by-page)
 
 				const uint8Array = new Uint8Array(fileBuffer);
+
+				const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
 				const pdf = await pdfjsLib.getDocument({ data: uint8Array })
 					.promise;
 
@@ -234,19 +236,16 @@ export class ChatService {
 					page: number;
 				}
 
-				const pageData: pageData[] = []
+				const pageData: pageData[] = [];
 
-				// Extract text per page with metadata
+				// Extract text per page (concatenate all words for a page)
 				for (let i = 1; i <= pdf.numPages; i++) {
 					const page = await pdf.getPage(i);
 					const textContent: TextContent = await page.getTextContent();
-					const pageTextFragments = textContent.items
-						.map((item: TextItem) => ({
-							text: item.str,
-							page: i,
-						}) as pageData);
-
-					pageData.push(...pageTextFragments)
+					const pageText = textContent.items
+						.map((item: TextItem) => item.str)
+						.join(' ');
+					pageData.push({ text: pageText, page: i });
 				}
 
 				// Step 2: Chunk text using RecursiveCharacterTextSplitter
@@ -326,13 +325,21 @@ export class ChatService {
 					chromaDocs.push(chunk.text);
 				});
 
-				// Step 5: Add to ChromaDB collection
-				await collection.add({
-					ids,
-					embeddings,
-					metadatas,
-					documents: chromaDocs,
-				});
+				// Step 5: Add to ChromaDB collection in batches (max 300 per operation for Cloud)
+				const CHROMA_BATCH_SIZE = 300;
+				for (let i = 0; i < ids.length; i += CHROMA_BATCH_SIZE) {
+					const batchIds = ids.slice(i, i + CHROMA_BATCH_SIZE);
+					const batchEmbeddings = embeddings.slice(i, i + CHROMA_BATCH_SIZE);
+					const batchMetadatas = metadatas.slice(i, i + CHROMA_BATCH_SIZE);
+					const batchDocuments = chromaDocs.slice(i, i + CHROMA_BATCH_SIZE);
+
+					await collection.add({
+						ids: batchIds,
+						embeddings: batchEmbeddings,
+						metadatas: batchMetadatas,
+						documents: batchDocuments,
+					});
+				}
 
 				results.success.push({
 					id: documentRecord.id,
@@ -473,7 +480,6 @@ export class ChatService {
 				pageContent
 			);
 
-			console.log(prompt);
 			const completion = await this.openai.chat.completions.create({
 				model: this.MODEL,
 				messages: [
@@ -526,8 +532,6 @@ also if recent chat history or older chat summary is available, treat that as yo
 				completion.choices[0]?.message?.content ||
 				'No response generated';
 
-			console.log(completion.usage?.total_tokens);
-
 			// Step 8: Save message to database
 			const [savedMessage] = await this.databaseService.db
 				.insert(chatMessages)
@@ -540,8 +544,6 @@ also if recent chat history or older chat summary is available, treat that as yo
 					totalTokens: completion.usage?.total_tokens || 0,
 				})
 				.returning();
-
-			console.log(retrievedMetadatas);
 
 			return {
 				message: 'Message sent successfully',
@@ -758,8 +760,6 @@ also if recent chat history or older chat summary is available, treat that as yo
 						pageContent
 					);
 
-					console.log(prompt);
-
 					// Start streaming
 					let fullText = '';
 					const completionStream = await this.openai.responses.create(
@@ -816,15 +816,8 @@ also if recent chat history or older chat summary is available, treat that as yo
 
 					// Stream the response chunks
 					for await (const event of completionStream) {
-						console.log(
-							'Event type:',
-							event.type,
-							'Event:',
-							JSON.stringify(event)
-						);
 						if (event.type === 'response.output_text.delta') {
 							fullText += event.delta;
-							console.log(event.delta);
 							observer.next({ data: event.delta });
 						}
 					}
