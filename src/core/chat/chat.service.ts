@@ -24,6 +24,9 @@ import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
 import { CacheService } from 'src/common/services/cache/cache.service';
 
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import { TextContent, TextItem } from 'pdfjs-dist/types/src/display/api';
+
 /**
  * Custom OpenAI Embedding Function for ChromaDB
  */
@@ -157,7 +160,7 @@ export class ChatService {
 			throw new BadRequestException('Only PDF files are supported');
 		}
 
-		if (chatId && chatId !== 'new') {
+		if (chatId) {
 			const chat = await this.databaseService.db.query.chats.findFirst({
 				where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
 			});
@@ -180,20 +183,18 @@ export class ChatService {
 		// Check existing documents to enforce upload limit
 		let remainingSlots = MAX_UPLOADS;
 
-		if (chatId !== 'new') {
-			const existingDocuments = await this.databaseService.db
-				.select()
-				.from(documents)
-				.where(
-					and(
-						eq(documents.chatId, chatId),
-						eq(documents.userId, userId)
-					)
-				);
+		const existingDocuments = await this.databaseService.db
+			.select()
+			.from(documents)
+			.where(
+				and(
+					eq(documents.chatId, chatId),
+					eq(documents.userId, userId)
+				)
+			);
 
-			remainingSlots = MAX_UPLOADS - existingDocuments.length;
-			remainingSlots = Math.max(remainingSlots, 0);
-		}
+		remainingSlots = MAX_UPLOADS - existingDocuments.length;
+		remainingSlots = Math.max(remainingSlots, 0);
 
 		if (remainingSlots <= 0) {
 			return {
@@ -205,27 +206,7 @@ export class ChatService {
 			};
 		}
 
-		// Create new chat ONCE before processing files
-		if (chatId === 'new') {
-			const newChatId = (
-				await this.databaseService.db
-					.insert(chats)
-					.values({
-						userId,
-						title:
-							message?.slice(0, this.CHAT_TITLE_MAX_LENGTH) ||
-							pdfFiles[0].originalname.slice(
-								0,
-								this.CHAT_TITLE_MAX_LENGTH
-							),
-					})
-					.returning()
-			)[0].id;
-
-			chatId = newChatId;
-		}
-
-		// Get or create collection
+		// Get or create chroma db collection
 		const collection = await this.getOrCreateCollection();
 
 		for (const file of pdfFiles) {
@@ -242,41 +223,30 @@ export class ChatService {
 				const fileBuffer = fs.readFileSync(file.path);
 
 				// Extract text from PDF using pdfjs-dist (page-by-page)
-				// Setup Node.js polyfills for pdfjs-dist
-				const canvas = await import('canvas');
-				if (!globalThis.DOMMatrix) {
-					const { DOMMatrix } = canvas;
-					globalThis.DOMMatrix = DOMMatrix as any;
-				}
-
-				// Dynamic import for ES module
-				const pdfjsLib = await import(
-					'pdfjs-dist/legacy/build/pdf.mjs'
-				);
 
 				const uint8Array = new Uint8Array(fileBuffer);
 				const pdf = await pdfjsLib.getDocument({ data: uint8Array })
 					.promise;
 
 				// Accumulate page texts with metadata
-				interface PageData {
+				interface pageData {
 					text: string;
 					page: number;
 				}
-				const pageData: PageData[] = [];
+
+				const pageData: pageData[] = []
 
 				// Extract text per page with metadata
 				for (let i = 1; i <= pdf.numPages; i++) {
 					const page = await pdf.getPage(i);
-					const textContent = await page.getTextContent();
-					const pageText = textContent.items
-						.map((item: any) => item.str)
-						.join(' ');
+					const textContent: TextContent = await page.getTextContent();
+					const pageTextFragments = textContent.items
+						.map((item: TextItem) => ({
+							text: item.str,
+							page: i,
+						}) as pageData);
 
-					pageData.push({
-						text: pageText,
-						page: i,
-					});
+					pageData.push(...pageTextFragments)
 				}
 
 				// Step 2: Chunk text using RecursiveCharacterTextSplitter
