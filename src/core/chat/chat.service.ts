@@ -225,6 +225,12 @@ export class ChatService {
 
 				const uint8Array = new Uint8Array(fileBuffer);
 
+				// since i dont use item.transform, i dont need full DOMMatrix implementation
+				(global as any).DOMMatrix = class DOMMatrix {
+				constructor() {}
+				multiplySelf() { return this; }
+				// You can stub other methods if needed
+				};
 				const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
 				const pdf = await pdfjsLib.getDocument({ data: uint8Array })
