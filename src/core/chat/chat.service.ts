@@ -24,8 +24,6 @@ import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
 import { CacheService } from 'src/common/services/cache/cache.service';
 
-import { TextContent, TextItem } from 'pdfjs-dist/types/src/display/api';
-
 /**
  * Custom OpenAI Embedding Function for ChromaDB
  */
@@ -221,35 +219,35 @@ export class ChatService {
 				// Step 1: Read file buffer once (used for both PDF parsing and S3 upload)
 				const fileBuffer = fs.readFileSync(file.path);
 
-				// Extract text from PDF using pdfjs-dist (page-by-page)
+				// Extract text from PDF using pdfjs-serverless (serverless-compatible, same API as pdfjs-dist)
 				const uint8Array = new Uint8Array(fileBuffer);
 
-				// Dynamic import for pdfjs-dist (required for proper module resolution in Node.js)
-				const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+				// Dynamic import pdfjs-serverless (types don't resolve with nodenext, but runtime works)
+				// eslint-disable-next-line @typescript-eslint/no-var-requires
+				const pdfjs = await import('pdfjs-serverless') as any;
+				const getDocument = pdfjs.getDocument as (options: { data: Uint8Array; useSystemFonts?: boolean }) => { promise: Promise<any> };
 
-				// Get PDF document (workers are automatically disabled in Node.js)
-				const pdf = await pdfjsLib.getDocument({ 
+				// Get PDF document using pdfjs-serverless
+				const pdf = await getDocument({ 
 					data: uint8Array,
-					// Disable unnecessary features for text extraction in Node.js
-					useWorkerFetch: false,
-					isEvalSupported: false,
-					useSystemFonts: false,
+					useSystemFonts: true,
 				}).promise;
 
 				// Accumulate page texts with metadata
-				interface pageData {
+				interface PageData {
 					text: string;
 					page: number;
 				}
 
-				const pageData: pageData[] = [];
+				const pageData: PageData[] = [];
 
 				// Extract text per page (concatenate all words for a page)
 				for (let i = 1; i <= pdf.numPages; i++) {
 					const page = await pdf.getPage(i);
-					const textContent: TextContent = await page.getTextContent();
+					const textContent = await page.getTextContent();
 					const pageText = textContent.items
-						.map((item: TextItem) => item.str)
+						.filter((item: any) => 'str' in item)
+						.map((item: any) => item.str)
 						.join(' ');
 					pageData.push({ text: pageText, page: i });
 				}
