@@ -222,15 +222,22 @@ export class ChatService {
 				const fileBuffer = fs.readFileSync(file.path);
 
 				// Extract text from PDF using pdfjs-dist (page-by-page)
-
 				const uint8Array = new Uint8Array(fileBuffer);
 
-				// since i dont use item.transform, i dont need full DOMMatrix implementation
-				(global as any).DOMMatrix = class DOMMatrix {
-				constructor() {}
-				multiplySelf() { return this; }
-				// You can stub other methods if needed
-				};
+				// DOMMATRIX is not defined error fix
+				// Ensure DOMMatrix is available for pdfjs-dist in Node.js
+				if (!globalThis.DOMMatrix) {
+					// Minimal DOMMatrix polyfill for text extraction (we don't use transforms)
+					(globalThis as any).DOMMatrix = class DOMMatrix {
+						a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+						constructor() {}
+						translate() { return this; }
+						scale() { return this; }
+						multiply() { return this; }
+					};
+				}
+
+				// Dynamic import for pdfjs-dist (required for proper module resolution in Node.js)
 				const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
 				const pdf = await pdfjsLib.getDocument({ data: uint8Array })
