@@ -228,10 +228,15 @@ export class ChatService {
 				const getDocument = pdfjs.getDocument as (options: { data: Uint8Array; useSystemFonts?: boolean }) => { promise: Promise<any> };
 
 				// Get PDF document using pdfjs-serverless
-				const pdf = await getDocument({ 
-					data: uint8Array,
-					useSystemFonts: true,
-				}).promise;
+				let pdf;
+				try {
+					pdf = await getDocument({ 
+						data: uint8Array,
+						useSystemFonts: true,
+					}).promise;
+				} catch (err) {
+					throw new BadRequestException('File not accepted.');
+				}
 
 				// Accumulate page texts with metadata
 				interface PageData {
@@ -687,9 +692,30 @@ also if recent chat history or older chat summary is available, treat that as yo
 									.orderBy(desc(chatMessages.createdAt))
 									.limit(4)
 									.then((msgs) => msgs.reverse()),
-						await this.databaseService.db.query.users.findFirst({
-							where: eq(users.id, userId),
-						}),
+						// Try to get user from cache first, fallback to database
+						(async () => {
+							const cachedUser = await this.cacheService.getCachedUser(userId);
+							if (cachedUser) {
+								return cachedUser;
+							}
+							
+							const dbUser = await this.databaseService.db.query.users.findFirst({
+								where: eq(users.id, userId),
+							});
+							
+							// Cache the user data for future requests
+							if (dbUser) {
+								await this.cacheService.cacheUser(userId, {
+									id: dbUser.id,
+									educationLevel: dbUser.educationLevel,
+									email: dbUser.email,
+									firstName: dbUser.firstName,
+									lastName: dbUser.lastName,
+								}).catch(err => console.error('Failed to cache user data:', err));
+							}
+							
+							return dbUser;
+						})(),
 					]);
 
 					const recentHistory =
@@ -805,6 +831,10 @@ also if recent chat history or older chat summary is available, treat that as yo
 - Make sure to take recent chat history and older chat summary into account when responding, if available, it is IMPORTANT.
 
 - If you want the user to look at something in the document provided, always refer to the page number or section if available.
+
+- you are unable to generate any form of files i.e docs, imgs, videos etc. you can only provide text responses.
+
+- use ">" where necessary
 									`,
 								},
 								{
@@ -993,6 +1023,56 @@ also if recent chat history or older chat summary is available, treat that as yo
 		return {
 			message: 'Chat retrieved successfully',
 			data: chat,
+		};
+	}
+
+	async getChatMessages(
+		chatId: string,
+		userId: string,
+		page: number = 1,
+		limit: number = 20
+	) {
+		// First verify the chat belongs to the user
+		const chat = await this.databaseService.db.query.chats.findFirst({
+			where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+		});
+
+		if (!chat) {
+			throw new BadRequestException('Chat not found');
+		}
+
+		// Calculate offset
+		const offset = (page - 1) * limit;
+
+		// Get total count of messages
+		const [{ count }] = await this.databaseService.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(chatMessages)
+			.where(eq(chatMessages.chatId, chatId));
+
+		// Get paginated messages (newest first)
+		const messages = await this.databaseService.db.query.chatMessages.findMany({
+			where: eq(chatMessages.chatId, chatId),
+			orderBy: [desc(chatMessages.createdAt)],
+			limit,
+			offset,
+		});
+
+		const totalPages = Math.ceil(count / limit);
+
+		return {
+			message: 'Messages retrieved successfully',
+			data: {
+				messages,
+				pagination: {
+					page,
+					limit,
+					totalMessages: count,
+					totalPages,
+					hasNextPage: page < totalPages,
+					hasPreviousPage: page > 1,
+				},
+			},
 		};
 	}
 

@@ -18,6 +18,8 @@ type StreamSessionData = {
 export class CacheService {
 	private redis: Redis;
 	private streamSessionPrefix = 'streamSession';
+	private userCachePrefix = 'user';
+	private userCacheTTL = 3600; // 1 hour TTL for user data
 
 	constructor(private configService: ConfigService) {
 		this.redis = new Redis({
@@ -55,7 +57,7 @@ export class CacheService {
 			ex: expirationSeconds,
 		});
 
-        return key;
+		return key;
 	}
 
 	/**
@@ -63,7 +65,7 @@ export class CacheService {
 	 * Returns null if not found.
 	 */
 	async getStreamSessionData(
-		chatId: string,
+		chatId: string
 	): Promise<StreamSessionData | null> {
 		const key = `${this.streamSessionPrefix}:${chatId}`;
 		const data = await this.redis.get<StreamSessionData>(key);
@@ -74,10 +76,63 @@ export class CacheService {
 	/**
 	 * Delete the current streaming session for a chat and user.
 	 */
-	async deleteStreamSessionData(
-		chatId: string,
-	): Promise<void> {
+	async deleteStreamSessionData(chatId: string): Promise<void> {
 		const key = `${this.streamSessionPrefix}:${chatId}`;
+		await this.redis.del(key);
+	}
+
+	/**
+	 * Cache user data in Redis with TTL
+	 * @param userId - User ID
+	 * @param userData - User data to cache
+	 * @param ttl - Time to live in seconds (default: 1 hour)
+	 */
+	async cacheUser(
+		userId: string,
+		userData: {
+			id: string;
+			educationLevel: string | null;
+			email: string;
+			firstName: string | null;
+			lastName: string | null;
+		},
+		ttl: number = this.userCacheTTL
+	): Promise<void> {
+		const key = `${this.userCachePrefix}:${userId}`;
+		await this.redis.set(key, JSON.stringify(userData), { ex: ttl });
+	}
+
+	/**
+	 * Retrieve cached user data from Redis
+	 * @param userId - User ID
+	 * @returns User data or null if not found
+	 */
+	async getCachedUser(
+		userId: string
+	): Promise<{
+		id: string;
+		educationLevel: string | null;
+		email: string;
+		firstName: string | null;
+		lastName: string | null;
+	} | null> {
+		const key = `${this.userCachePrefix}:${userId}`;
+		const data = await this.redis.get<string>(key);
+
+		if (!data) {
+			return null;
+		}
+
+		// Handle both string and object responses from Redis
+		return typeof data === 'string' ? JSON.parse(data) : data;
+	}
+
+	/**
+	 * Invalidate cached user data
+	 * @param userId - User ID
+	 */
+	async invalidateUserCache(userId: string): Promise<void> {
+		const key = `${this.userCachePrefix}:${userId}`;
 		await this.redis.del(key);
 	}
 }

@@ -4,6 +4,7 @@ import {
 	varchar,
 	integer,
 	timestamp,
+	index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { users } from './users';
@@ -11,19 +12,26 @@ import { documents } from './documents';
 import { chatMessages } from './chatMessages';
 import { chatSummaries } from './chatSummaries';
 
-export const chats = pgTable('chats', {
-	id: uuid().defaultRandom().primaryKey(),
-	userId: uuid('user_id')
-		.references(() => users.id, { onDelete: 'set null' })
-		.notNull(),
-	title: varchar({ length: 28 }).default('Untitled Chat').notNull(),
-	createdAt: timestamp('created_at', { withTimezone: true })
-		.defaultNow()
-		.notNull(),
-	updatedAt: timestamp('updated_at', { withTimezone: true })
-		.defaultNow()
-		.notNull(),
-});
+export const chats = pgTable(
+	'chats',
+	{
+		id: uuid().defaultRandom().primaryKey(),
+		userId: uuid('user_id')
+			.references(() => users.id, { onDelete: 'set null' })
+			.notNull(),
+		title: varchar({ length: 28 }).default('Untitled Chat').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => ({
+		userIdIdx: index('chats_user_id_idx').on(table.userId),
+		updatedAtIdx: index('chats_updated_at_idx').on(table.updatedAt),
+	})
+);
 
 export const chatsRelations = relations(chats, ({ one, many }) => ({
 	user: one(users, {

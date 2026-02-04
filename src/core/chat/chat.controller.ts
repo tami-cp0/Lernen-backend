@@ -24,6 +24,10 @@ import ChatIdParamDTO from './dto/chatid.dto';
 import RemoveDocBodyDTO from './dto/removeDoc.dto';
 import sendMessageDTO from './dto/sendMessage.dto';
 import { UploadDocBodyDTO, UploadDocumentResponseDTO } from './dto/upload.dto';
+import {
+	GetMessagesQueryDTO,
+	GetMessagesResponseDTO,
+} from './dto/getMessages.dto';
 import { MulterExceptionFilter } from '../../common/filters/multer.filter';
 import {
 	ApiBadRequestResponse,
@@ -58,7 +62,8 @@ import {
 	GetChatsResponseDTO,
 	SendMessageResponseDTO,
 	CreateChatResponseDTO,
-	UpdateFeedbackResponseDTO
+	UpdateFeedbackResponseDTO,
+	GetMessagesResponseDTO
 )
 @Controller('chats')
 export class ChatController {
@@ -274,6 +279,77 @@ export class ChatController {
 			},
 		},
 	})
+	@ApiOperation({
+		summary: 'Get paginated chat messages',
+		description: `
+            Retrieves paginated messages from a specific chat.
+            - Returns messages in reverse chronological order (newest first)
+            - Supports pagination with customizable page size
+            - Includes pagination metadata (total count, pages, etc.)
+            - Only the chat owner can access their chat messages
+            - Maximum 100 messages per page
+        `,
+	})
+	@ApiOkResponse({
+		description: 'Messages retrieved successfully',
+		schema: {
+			allOf: [{ $ref: getSchemaPath(GetMessagesResponseDTO) }],
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Chat not found',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: { type: 'string', example: 'Chat not found' },
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@Get(':chatId/messages/paginated')
+	async getChatMessagesPaginated(
+		@Param() param: ChatIdParamDTO,
+		@Query() query: GetMessagesQueryDTO,
+		@Req() req: Request
+	) {
+		return await this.chatService.getChatMessages(
+			param.chatId!,
+			req.user!.id,
+			query.page,
+			query.limit
+		);
+	}
+
+	@ApiOperation({
+		summary: 'Get a specific chat with messages and documents',
+		description: `
+            Retrieves a specific chat belonging to the authenticated user with all associated messages and documents.
+            - Returns chat details, messages, and uploaded documents
+            - Documents are retrieved without internal vector store details
+            - Messages include user and assistant turns with token counts
+            - Only the chat owner can access their chats
+        `,
+	})
+	@ApiOkResponse({
+		description: 'Chat retrieved successfully',
+		schema: {
+			allOf: [{ $ref: getSchemaPath(GetChatResponseDTO) }],
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Chat not found',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: { type: 'string', example: 'Chat not found' },
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
 	@ApiDefaultDocProtected()
 	@UseGuards(JwtAuthGuard)
 	@Get(':chatId/messages')
@@ -317,13 +393,12 @@ export class ChatController {
 	async createStreamSession(
 		@Param() param: ChatIdParamDTO,
 		@Body() body: sendMessageDTO,
-		@Req() req: Request,
+		@Req() req: Request
 	) {
-		const token =
-			req.headers.authorization?.split(' ')[1];
+		const token = req.headers.authorization?.split(' ')[1];
 
 		if (!token) {
-		  throw new UnauthorizedException('Missing auth token');
+			throw new UnauthorizedException('Missing auth token');
 		}
 
 		return await this.chatService.createStreamSession(
@@ -339,12 +414,8 @@ export class ChatController {
 
 	// @UseGuards(JwtAuthGuard) disabled for SSE without auth
 	@Sse(':chatId/sse/stream-message')
-	streamMessage(
-		@Param() param: ChatIdParamDTO,
-	) {
-		return this.chatService.streamMessage(
-			param.chatId,
-		);
+	streamMessage(@Param() param: ChatIdParamDTO) {
+		return this.chatService.streamMessage(param.chatId);
 	}
 
 	@ApiOperation({

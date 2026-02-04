@@ -160,17 +160,17 @@ Rewrite the query to include relevant context from the conversation that would h
 		retrievedMetadatas: any[];
 		retrievedDocs: any[];
 	}> {
-		// Rewrite query using conversation context
-		const rewrittenQuery = await this.rewriteQuery(
-			openai,
-			message,
-			messages
-		);
+		// Skip query rewriting if no conversation history (saves 50-200ms)
+		// Use original query directly for first message or when no context available
+		let queryToUse = message;
 
-		console.log('Original query:', message);
-		console.log('Rewritten query:', rewrittenQuery);
+		// 4 because 4 turns are always in memory / recent history
+		if (messages.length > 4) {
+			// Only rewrite query if there's conversation history to leverage
+			queryToUse = await this.rewriteQuery(openai, message, messages);
+		}
 
-		const [queryEmbedding] = await generateEmbeddings([rewrittenQuery]);
+		const [queryEmbedding] = await generateEmbeddings([queryToUse]);
 
 		const whereFilter: Record<string, any> = {
 			$and: [
