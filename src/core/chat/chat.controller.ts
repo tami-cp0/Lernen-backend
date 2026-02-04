@@ -28,6 +28,7 @@ import {
 	GetMessagesQueryDTO,
 	GetMessagesResponseDTO,
 } from './dto/getMessages.dto';
+import { GetDocumentsResponseDTO } from './dto/getDocuments.dto';
 import { MulterExceptionFilter } from '../../common/filters/multer.filter';
 import {
 	ApiBadRequestResponse,
@@ -63,7 +64,8 @@ import {
 	SendMessageResponseDTO,
 	CreateChatResponseDTO,
 	UpdateFeedbackResponseDTO,
-	GetMessagesResponseDTO
+	GetMessagesResponseDTO,
+	GetDocumentsResponseDTO
 )
 @Controller('chats')
 export class ChatController {
@@ -531,6 +533,46 @@ export class ChatController {
 			messageId,
 			req.user!.id,
 			body.helpful
+		);
+	}
+
+	@ApiOperation({
+		summary: 'Get all documents in a chat',
+		description: `
+            Retrieves all documents uploaded to a specific chat.
+            - Returns list of all documents with metadata (filename, size, type, etc.)
+            - Excludes internal vector store IDs
+            - Only the chat owner can access their chat documents
+            - Documents are ordered by upload time
+        `,
+	})
+	@ApiOkResponse({
+		description: 'Documents retrieved successfully',
+		schema: {
+			allOf: [{ $ref: getSchemaPath(GetDocumentsResponseDTO) }],
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Chat not found',
+		schema: {
+			type: 'object',
+			properties: {
+				statusCode: { type: 'number', example: 400 },
+				message: { type: 'string', example: 'Chat not found' },
+				error: { type: 'string', example: 'Bad Request' },
+			},
+		},
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@Get(':chatId/documents')
+	async getChatDocuments(
+		@Param() param: ChatIdParamDTO,
+		@Req() req: Request
+	) {
+		return await this.chatService.getChatDocuments(
+			param.chatId!,
+			req.user!.id
 		);
 	}
 

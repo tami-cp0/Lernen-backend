@@ -1076,6 +1076,37 @@ also if recent chat history or older chat summary is available, treat that as yo
 		};
 	}
 
+	async getChatDocuments(chatId: string, userId: string) {
+		// First verify the chat belongs to the user
+		const chat = await this.databaseService.db.query.chats.findFirst({
+			where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+		});
+
+		if (!chat) {
+			throw new BadRequestException('Chat not found');
+		}
+
+		// Get all documents for the chat (excluding internal vector store details)
+		const chatDocuments = await this.databaseService.db.query.documents.findMany({
+			where: and(
+				eq(documents.chatId, chatId),
+				eq(documents.userId, userId)
+			),
+			columns: {
+				vectorStoreFileId: false,
+				vectorStoreId: false,
+			},
+		});
+
+		return {
+			message: 'Documents retrieved successfully',
+			data: {
+				documents: chatDocuments,
+				count: chatDocuments.length,
+			},
+		};
+	}
+
 	async deleteChat(chatId: string, userId: string) {
 		const chat = await this.databaseService.db.query.chats.findFirst({
 			where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
