@@ -477,7 +477,7 @@ export class ChatController {
 	})
 	@ApiDefaultDocProtected()
 	@UseGuards(JwtAuthGuard)
-	@Sse(':chatId/send-buffered-message')
+	@Post(':chatId/send-buffered-message')
 	async sendBufferedMessage(
 		@Param() param: ChatIdParamDTO,
 		@Body() body: sendMessageDTO,
@@ -654,5 +654,14 @@ export class ChatController {
 			documentId,
 			req.user!.id
 		);
+	}
+
+	@ApiOperation({
+		summary: 'Test endpoint - send message without auth/DB/streaming',
+		description: 'Simple test endpoint for evaluation. No authentication, no database, just message in and response out.',
+	})
+	@Post('test/simple-message')
+	async testSimpleMessage(@Body() body: { message: string }) {
+		return await this.chatService.testSimpleMessage(body.message);
 	}
 }
