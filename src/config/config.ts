@@ -80,9 +80,9 @@ export const ChromaConfig = registerAs(
 export const s3Config = registerAs(
     's3',
     () => ({
-        endpoint: process.env.TEBI_S3_ENDPOINT,
-        accessKeyId: process.env.TEBI_ACCESS_KEY,
-        secretAccessKey: process.env.TEBI_SECRET_KEY,
+        endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
+        accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
     })
 )
 

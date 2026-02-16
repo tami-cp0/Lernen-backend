@@ -30,6 +30,8 @@ import {
 } from './dto/getMessages.dto';
 import { GetDocumentsResponseDTO } from './dto/getDocuments.dto';
 import { MulterExceptionFilter } from '../../common/filters/multer.filter';
+import { RequestUploadUrlDTO } from './dto/requestUploadUrl.dto';
+import { ProcessUploadedDocumentDTO } from './dto/processUploadedDocument.dto';
 import {
 	ApiBadRequestResponse,
 	ApiBody,
@@ -159,6 +161,118 @@ export class ChatController {
 			param.chatId!,
 			req!.user!.id,
 			body.message
+		);
+	}
+
+	@ApiOperation({
+		summary: 'Request pre-signed S3 upload URL',
+		description:
+			'Generates a pre-signed URL for client to upload PDF directly to S3. Creates a pending document record.',
+	})
+	@ApiOkResponse({
+		description: 'Pre-signed URL generated successfully',
+		schema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					example: 'Pre-signed URL generated',
+				},
+				data: {
+					type: 'object',
+					properties: {
+						uploadUrl: {
+							type: 'string',
+							description: 'Pre-signed URL for PUT request to S3',
+						},
+						documentId: {
+							type: 'string',
+							format: 'uuid',
+							description: 'Document record ID',
+						},
+						s3Key: {
+							type: 'string',
+							description: 'S3 object key',
+						},
+						expiresIn: {
+							type: 'number',
+							example: 900,
+							description: 'URL expiration time in seconds',
+						},
+					},
+				},
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Chat not found or max documents reached',
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@Post(':chatId/request-upload-url')
+	async requestUploadUrl(
+		@Param() param: ChatIdParamDTO,
+		@Body() body: RequestUploadUrlDTO,
+		@Req() req: Request
+	) {
+		return await this.chatService.generateUploadUrl(
+			param.chatId!,
+			req.user!.id,
+			body.fileName,
+			body.fileType,
+			body.fileSize
+		);
+	}
+
+	@ApiOperation({
+		summary: 'Process document after S3 upload',
+		description:
+			'Processes PDF that was uploaded directly to S3. Extracts text, generates embeddings, and stores in vector DB.',
+	})
+	@ApiOkResponse({
+		description: 'Document processed successfully',
+		schema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					example: 'Document processed successfully',
+				},
+				data: {
+					type: 'object',
+					properties: {
+						document: {
+							type: 'object',
+							properties: {
+								id: { type: 'string', format: 'uuid' },
+								fileName: { type: 'string' },
+								fileType: { type: 'string' },
+								fileSize: { type: 'number' },
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		description: 'Document not found or invalid PDF',
+	})
+	@ApiInternalServerErrorResponse({
+		description: 'Processing failed',
+	})
+	@ApiDefaultDocProtected()
+	@UseGuards(JwtAuthGuard)
+	@Post(':chatId/process-uploaded-document')
+	async processUploadedDocument(
+		@Param() param: ChatIdParamDTO,
+		@Body() body: ProcessUploadedDocumentDTO,
+		@Req() req: Request
+	) {
+		return await this.chatService.processUploadedDocument(
+			param.chatId!,
+			req.user!.id,
+			body.documentId
 		);
 	}
 

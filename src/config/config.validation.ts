@@ -110,17 +110,17 @@ class EnvironmentVariables {
   CHROMA_DATABASE: string;
 
   // S3
-  @IsString({ message: 'TEBI_S3_ENDPOINT must be a string' })
-  @IsNotEmpty({ message: 'TEBI_S3_ENDPOINT is required and cannot be empty' })
-  TEBI_S3_ENDPOINT: string;
+  @IsString({ message: 'CLOUDFLARE_R2_ENDPOINT must be a string' })
+  @IsNotEmpty({ message: 'CLOUDFLARE_R2_ENDPOINT is required and cannot be empty' })
+  CLOUDFLARE_R2_ENDPOINT: string;
+  
+  @IsString({ message: 'CLOUDFLARE_R2_ACCESS_KEY_ID must be a string' })
+  @IsNotEmpty({ message: 'CLOUDFLARE_R2_ACCESS_KEY_ID is required and cannot be empty' })
+  CLOUDFLARE_R2_ACCESS_KEY_ID: string
 
-  @IsString({ message: 'TEBI_ACCESS_KEY must be a string' })
-  @IsNotEmpty({ message: 'TEBI_ACCESS_KEY is required and cannot be empty' })
-  TEBI_ACCESS_KEY: string;
-
-  @IsString({ message: 'TEBI_SECRET_KEY must be a string' })
-  @IsNotEmpty({ message: 'TEBI_SECRET_KEY is required and cannot be empty' })
-  TEBI_SECRET_KEY: string;
+  @IsString({ message: 'CLOUDFLARE_R2_SECRET_ACCESS_KEY must be a string' })
+  @IsNotEmpty({ message: 'CLOUDFLARE_R2_SECRET_ACCESS_KEY is required and cannot be empty' })
+  CLOUDFLARE_R2_SECRET_ACCESS_KEY: string;
 
   // Redis
   @IsString({ message: 'UPSTASH_REDIS_URL must be a string' })

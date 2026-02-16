@@ -1309,4 +1309,240 @@ also if recent chat history or older chat summary is available, treat that as yo
 			);
 		}
 	}
+
+	/**
+	 * Generate pre-signed URL for client-side S3 upload
+	 * Creates a pending document record and returns upload URL
+	 */
+	async generateUploadUrl(
+		chatId: string,
+		userId: string,
+		fileName: string,
+		fileType: string,
+		fileSize: number
+	) {
+		// Validate chat exists and belongs to user
+		const chat = await this.databaseService.db.query.chats.findFirst({
+			where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+		});
+
+		if (!chat) {
+			throw new BadRequestException('Chat not found');
+		}
+
+		// Check upload slots
+		const existingDocuments = await this.databaseService.db
+			.select()
+			.from(documents)
+			.where(
+				and(eq(documents.chatId, chatId), eq(documents.userId, userId))
+			);
+
+		const MAX_UPLOADS = 5;
+		if (existingDocuments.length >= MAX_UPLOADS) {
+			throw new BadRequestException(
+				`Maximum ${MAX_UPLOADS} documents per chat`
+			);
+		}
+
+		// Generate S3 key
+		const s3Key = this.s3Service.generateKey(userId, fileName);
+
+		// Create pending document record
+		const [documentRecord] = await this.databaseService.db
+			.insert(documents)
+			.values({
+				chatId,
+				userId,
+				fileName,
+				fileType,
+				fileSize,
+				vectorStoreId: `chat_${chatId}`,
+				vectorStoreFileId: `pending_${Date.now()}`,
+				s3key: s3Key,
+			})
+			.returning();
+
+		// Generate pre-signed PUT URL (expires in 15 minutes)
+		const uploadUrl = await this.s3Service.getPresignedPutUrl(
+			'user-docs',
+			s3Key,
+			fileType,
+			900
+		);
+
+		return {
+			message: 'Pre-signed URL generated',
+			data: {
+				uploadUrl,
+				documentId: documentRecord.id,
+				s3Key,
+				expiresIn: 900,
+			},
+		};
+	}
+
+	/**
+	 * Process document after client uploads to S3
+	 * Downloads from S3, extracts text, generates embeddings, stores in ChromaDB
+	 */
+	async processUploadedDocument(
+		chatId: string,
+		userId: string,
+		documentId: string
+	) {
+		// Fetch document record
+		const documentRecord =
+			await this.databaseService.db.query.documents.findFirst({
+				where: and(
+					eq(documents.id, documentId),
+					eq(documents.chatId, chatId),
+					eq(documents.userId, userId)
+				),
+			});
+
+		if (!documentRecord) {
+			throw new BadRequestException('Document not found');
+		}
+
+		try {
+			// Step 1: Download file from S3
+			const fileBuffer = await this.s3Service.getObjectBuffer(
+				'user-docs',
+				documentRecord.s3key
+			);
+
+			// Step 2: Extract text from PDF using pdfjs-serverless
+			const uint8Array = new Uint8Array(fileBuffer);
+			const pdfjs = (await import('pdfjs-serverless')) as any;
+			const getDocument = pdfjs.getDocument as (options: {
+				data: Uint8Array;
+				useSystemFonts?: boolean;
+			}) => { promise: Promise<any> };
+
+			let pdf;
+			try {
+				pdf = await getDocument({
+					data: uint8Array,
+					useSystemFonts: true,
+				}).promise;
+			} catch (err) {
+				throw new BadRequestException('Invalid PDF file');
+			}
+
+			// Extract text per page
+			interface PageData {
+				text: string;
+				page: number;
+			}
+
+			const pageData: PageData[] = [];
+
+			for (let i = 1; i <= pdf.numPages; i++) {
+				const page = await pdf.getPage(i);
+				const textContent = await page.getTextContent();
+				const pageText = textContent.items
+					.filter((item: any) => 'str' in item)
+					.map((item: any) => item.str)
+					.join(' ');
+				pageData.push({ text: pageText, page: i });
+			}
+
+			// Step 3: Chunk text using RecursiveCharacterTextSplitter
+			const textSplitter = new RecursiveCharacterTextSplitter({
+				chunkSize: 1000,
+				chunkOverlap: 200,
+			});
+
+			const allChunks: Array<{ text: string; page: number }> = [];
+
+			for (const pageInfo of pageData) {
+				const chunks = await textSplitter.splitText(pageInfo.text);
+				chunks.forEach((chunk) => {
+					allChunks.push({
+						text: chunk,
+						page: pageInfo.page,
+					});
+				});
+			}
+
+			// Step 4: Generate embeddings
+			const chunkTexts = allChunks.map((c) => c.text);
+			const embeddings = await this.generateEmbeddings(chunkTexts);
+
+			// Step 5: Prepare ChromaDB data
+			const collection = await this.getOrCreateCollection();
+			const ids: string[] = [];
+			const metadatas: Array<Record<string, any>> = [];
+			const chromaDocs: string[] = [];
+
+			allChunks.forEach((chunk, index) => {
+				ids.push(`${documentRecord.id}_chunk_${index}`);
+				metadatas.push({
+					documentId: String(documentRecord.id),
+					fileName: documentRecord.fileName,
+					chatId: String(chatId),
+					userId: String(userId),
+					page: chunk.page,
+					source: documentRecord.fileName,
+				});
+				chromaDocs.push(chunk.text);
+			});
+
+			// Step 6: Add to ChromaDB in batches
+			const CHROMA_BATCH_SIZE = 300;
+			for (let i = 0; i < ids.length; i += CHROMA_BATCH_SIZE) {
+				const batchIds = ids.slice(i, i + CHROMA_BATCH_SIZE);
+				const batchEmbeddings = embeddings.slice(
+					i,
+					i + CHROMA_BATCH_SIZE
+				);
+				const batchMetadatas = metadatas.slice(
+					i,
+					i + CHROMA_BATCH_SIZE
+				);
+				const batchDocuments = chromaDocs.slice(
+					i,
+					i + CHROMA_BATCH_SIZE
+				);
+
+				await collection.add({
+					ids: batchIds,
+					embeddings: batchEmbeddings,
+					metadatas: batchMetadatas,
+					documents: batchDocuments,
+				});
+			}
+
+			// Update document record with real vectorStoreFileId
+			await this.databaseService.db
+				.update(documents)
+				.set({
+					vectorStoreFileId: `${chatId}_${Date.now()}`,
+					updatedAt: new Date(),
+				})
+				.where(eq(documents.id, documentRecord.id));
+
+			return {
+				message: 'Document processed successfully',
+				data: {
+					document: {
+						id: documentRecord.id,
+						fileName: documentRecord.fileName,
+						fileType: documentRecord.fileType,
+						fileSize: documentRecord.fileSize,
+					},
+				},
+			};
+		} catch (error) {
+			// Clean up on failure - delete document record
+			await this.databaseService.db
+				.delete(documents)
+				.where(eq(documents.id, documentRecord.id));
+
+			throw new InternalServerErrorException(
+				error instanceof Error ? error.message : 'Processing failed'
+			);
+		}
+	}
 }
