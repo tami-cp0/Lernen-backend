@@ -658,7 +658,8 @@ export class ChatController {
 
 	@ApiOperation({
 		summary: 'Test endpoint - send message without auth/DB/streaming',
-		description: 'Simple test endpoint for evaluation. No authentication, no database, just message in and response out.',
+		description:
+			'Simple test endpoint for evaluation. No authentication, no database, just message in and response out.',
 	})
 	@Post('test/simple-message')
 	async testSimpleMessage(@Body() body: { message: string }) {

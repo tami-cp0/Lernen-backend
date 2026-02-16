@@ -184,10 +184,7 @@ export class ChatService {
 			.select()
 			.from(documents)
 			.where(
-				and(
-					eq(documents.chatId, chatId),
-					eq(documents.userId, userId)
-				)
+				and(eq(documents.chatId, chatId), eq(documents.userId, userId))
 			);
 
 		remainingSlots = MAX_UPLOADS - existingDocuments.length;
@@ -224,13 +221,16 @@ export class ChatService {
 
 				// Dynamic import pdfjs-serverless (types don't resolve with nodenext, but runtime works)
 				// eslint-disable-next-line @typescript-eslint/no-var-requires
-				const pdfjs = await import('pdfjs-serverless') as any;
-				const getDocument = pdfjs.getDocument as (options: { data: Uint8Array; useSystemFonts?: boolean }) => { promise: Promise<any> };
+				const pdfjs = (await import('pdfjs-serverless')) as any;
+				const getDocument = pdfjs.getDocument as (options: {
+					data: Uint8Array;
+					useSystemFonts?: boolean;
+				}) => { promise: Promise<any> };
 
 				// Get PDF document using pdfjs-serverless
 				let pdf;
 				try {
-					pdf = await getDocument({ 
+					pdf = await getDocument({
 						data: uint8Array,
 						useSystemFonts: true,
 					}).promise;
@@ -338,9 +338,18 @@ export class ChatService {
 				const CHROMA_BATCH_SIZE = 300;
 				for (let i = 0; i < ids.length; i += CHROMA_BATCH_SIZE) {
 					const batchIds = ids.slice(i, i + CHROMA_BATCH_SIZE);
-					const batchEmbeddings = embeddings.slice(i, i + CHROMA_BATCH_SIZE);
-					const batchMetadatas = metadatas.slice(i, i + CHROMA_BATCH_SIZE);
-					const batchDocuments = chromaDocs.slice(i, i + CHROMA_BATCH_SIZE);
+					const batchEmbeddings = embeddings.slice(
+						i,
+						i + CHROMA_BATCH_SIZE
+					);
+					const batchMetadatas = metadatas.slice(
+						i,
+						i + CHROMA_BATCH_SIZE
+					);
+					const batchDocuments = chromaDocs.slice(
+						i,
+						i + CHROMA_BATCH_SIZE
+					);
 
 					await collection.add({
 						ids: batchIds,
@@ -694,26 +703,37 @@ also if recent chat history or older chat summary is available, treat that as yo
 									.then((msgs) => msgs.reverse()),
 						// Try to get user from cache first, fallback to database
 						(async () => {
-							const cachedUser = await this.cacheService.getCachedUser(userId);
+							const cachedUser =
+								await this.cacheService.getCachedUser(userId);
 							if (cachedUser) {
 								return cachedUser;
 							}
-							
-							const dbUser = await this.databaseService.db.query.users.findFirst({
-								where: eq(users.id, userId),
-							});
-							
+
+							const dbUser =
+								await this.databaseService.db.query.users.findFirst(
+									{
+										where: eq(users.id, userId),
+									}
+								);
+
 							// Cache the user data for future requests
 							if (dbUser) {
-								await this.cacheService.cacheUser(userId, {
-									id: dbUser.id,
-									educationLevel: dbUser.educationLevel,
-									email: dbUser.email,
-									firstName: dbUser.firstName,
-									lastName: dbUser.lastName,
-								}).catch(err => console.error('Failed to cache user data:', err));
+								await this.cacheService
+									.cacheUser(userId, {
+										id: dbUser.id,
+										educationLevel: dbUser.educationLevel,
+										email: dbUser.email,
+										firstName: dbUser.firstName,
+										lastName: dbUser.lastName,
+									})
+									.catch((err) =>
+										console.error(
+											'Failed to cache user data:',
+											err
+										)
+									);
 							}
-							
+
 							return dbUser;
 						})(),
 					]);
@@ -1051,12 +1071,13 @@ also if recent chat history or older chat summary is available, treat that as yo
 			.where(eq(chatMessages.chatId, chatId));
 
 		// Get paginated messages (newest first)
-		const messages = await this.databaseService.db.query.chatMessages.findMany({
-			where: eq(chatMessages.chatId, chatId),
-			orderBy: [desc(chatMessages.createdAt)],
-			limit,
-			offset,
-		});
+		const messages =
+			await this.databaseService.db.query.chatMessages.findMany({
+				where: eq(chatMessages.chatId, chatId),
+				orderBy: [desc(chatMessages.createdAt)],
+				limit,
+				offset,
+			});
 
 		const totalPages = Math.ceil(count / limit);
 
@@ -1087,16 +1108,17 @@ also if recent chat history or older chat summary is available, treat that as yo
 		}
 
 		// Get all documents for the chat (excluding internal vector store details)
-		const chatDocuments = await this.databaseService.db.query.documents.findMany({
-			where: and(
-				eq(documents.chatId, chatId),
-				eq(documents.userId, userId)
-			),
-			columns: {
-				vectorStoreFileId: false,
-				vectorStoreId: false,
-			},
-		});
+		const chatDocuments =
+			await this.databaseService.db.query.documents.findMany({
+				where: and(
+					eq(documents.chatId, chatId),
+					eq(documents.userId, userId)
+				),
+				columns: {
+					vectorStoreFileId: false,
+					vectorStoreId: false,
+				},
+			});
 
 		return {
 			message: 'Documents retrieved successfully',
@@ -1239,5 +1261,52 @@ also if recent chat history or older chat summary is available, treat that as yo
 				expiresIn: 86400,
 			},
 		};
+	}
+
+	/**
+	 * Simple test endpoint - no auth, no DB, no streaming
+	 * Just sends a message to OpenAI and returns the response
+	 */
+	async testSimpleMessage(message: string) {
+		if (!message || message.trim().length === 0) {
+			throw new BadRequestException('Message cannot be empty');
+		}
+
+		try {
+			const completion = await this.openai.chat.completions.create({
+				model: this.MODEL,
+				messages: [
+					{
+						role: 'system',
+						content:
+							'You are a helpful assistant. Be concise and accurate.',
+					},
+					{
+						role: 'user',
+						content: message,
+					},
+				],
+				temperature: 1,
+			});
+
+			const response =
+				completion.choices[0]?.message?.content ||
+				'No response generated';
+
+			return {
+				message: 'Response generated successfully',
+				data: {
+					userMessage: message,
+					assistantResponse: response,
+					model: this.MODEL,
+					tokens: completion.usage?.total_tokens || 0,
+				},
+			};
+		} catch (error) {
+			console.error('OpenAI API error:', error);
+			throw new InternalServerErrorException(
+				'Failed to generate response'
+			);
+		}
 	}
 }
