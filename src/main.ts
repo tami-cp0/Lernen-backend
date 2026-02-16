@@ -21,9 +21,27 @@ async function bootstrap() {
 	app.use(helmet());
 
 	const frontendUrl = config.get<AppConfigType>('app')!.frontendUrl!;
+	const backendUrl = config.get<AppConfigType>('app')!.backendUrl!;
+
+	const allowedOrigins = [
+		'http://localhost:3000', 
+		'http://127.0.0.1:3000',
+	];
+
+	// Add production URLs if they exist
+	if (frontendUrl) {
+		allowedOrigins.push(frontendUrl);
+		// Also allow without trailing slash if present
+		allowedOrigins.push(frontendUrl.replace(/\/$/, ''));
+	}
+	if (backendUrl) {
+		allowedOrigins.push(backendUrl);
+		// Also allow without trailing slash if present
+		allowedOrigins.push(backendUrl.replace(/\/$/, ''));
+	}
 
 	const corsOptions = {
-		origin: ['http://localhost:3000', 'http://127.0.0.1:3000', frontendUrl],
+		origin: allowedOrigins,
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
