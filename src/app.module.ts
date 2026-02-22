@@ -11,8 +11,9 @@ import { EmailModule } from './common/services/email/email.module';
 import { ChatModule } from './core/chat/chat.module';
 import { UserModule } from './core/user/user.module';
 import { AppController } from './app.controller';
-import { S3Module } from './common/services/s3/s3.module';
 import { CacheModule } from './common/services/cache/cache.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+
 
 @Module({
   imports: [
@@ -40,7 +41,15 @@ import { CacheModule } from './common/services/cache/cache.module';
     EmailModule,
     ChatModule,
     UserModule,
-    CacheModule
+    CacheModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60,
+          limit: 10,
+        },
+      ],
+    }),
   ],
   controllers: [AppController],
   providers: [

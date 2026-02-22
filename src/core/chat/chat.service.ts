@@ -1264,53 +1264,6 @@ also if recent chat history or older chat summary is available, treat that as yo
 	}
 
 	/**
-	 * Simple test endpoint - no auth, no DB, no streaming
-	 * Just sends a message to OpenAI and returns the response
-	 */
-	async testSimpleMessage(message: string) {
-		if (!message || message.trim().length === 0) {
-			throw new BadRequestException('Message cannot be empty');
-		}
-
-		try {
-			const completion = await this.openai.chat.completions.create({
-				model: this.MODEL,
-				messages: [
-					{
-						role: 'system',
-						content:
-							'You are a helpful assistant. Be concise and accurate.',
-					},
-					{
-						role: 'user',
-						content: message,
-					},
-				],
-				temperature: 1,
-			});
-
-			const response =
-				completion.choices[0]?.message?.content ||
-				'No response generated';
-
-			return {
-				message: 'Response generated successfully',
-				data: {
-					userMessage: message,
-					assistantResponse: response,
-					model: this.MODEL,
-					tokens: completion.usage?.total_tokens || 0,
-				},
-			};
-		} catch (error) {
-			console.error('OpenAI API error:', error);
-			throw new InternalServerErrorException(
-				'Failed to generate response'
-			);
-		}
-	}
-
-	/**
 	 * Generate pre-signed URL for client-side S3 upload
 	 * Creates a pending document record and returns upload URL
 	 */

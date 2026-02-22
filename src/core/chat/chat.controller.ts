@@ -16,6 +16,7 @@ import {
 	UseGuards,
 	UseInterceptors,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/guards/jwt/jwt.guard';
@@ -146,6 +147,7 @@ export class ChatController {
 		},
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 5, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@UseFilters(MulterExceptionFilter)
 	@Post(':chatId/upload-document')
@@ -208,6 +210,7 @@ export class ChatController {
 		description: 'Chat not found or max documents reached',
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Post(':chatId/request-upload-url')
 	async requestUploadUrl(
@@ -262,6 +265,7 @@ export class ChatController {
 		description: 'Processing failed',
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Post(':chatId/process-uploaded-document')
 	async processUploadedDocument(
@@ -306,6 +310,7 @@ export class ChatController {
 	})
 	@ApiNoContentResponse({ description: 'doc has been deleted, no response' })
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Delete(':chatId/remove-document')
 	async removeDocument(
@@ -343,6 +348,7 @@ export class ChatController {
 		description: 'A chat with this ID already exists',
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Post('create')
 	@HttpCode(201)
@@ -364,6 +370,7 @@ export class ChatController {
 		schema: { $ref: getSchemaPath(GetChatsResponseDTO) },
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 30, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Get()
 	async getChats(@Req() req: Request) {
@@ -424,6 +431,7 @@ export class ChatController {
 		},
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 30, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Get(':chatId/messages/paginated')
 	async getChatMessagesPaginated(
@@ -467,6 +475,7 @@ export class ChatController {
 		},
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 30, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Get(':chatId/messages')
 	async getChat(@Param() param: ChatIdParamDTO, @Req() req: Request) {
@@ -498,12 +507,14 @@ export class ChatController {
 		},
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Delete(':chatId/delete')
 	async deleteChat(@Param() param: ChatIdParamDTO, @Req() req: Request) {
 		return await this.chatService.deleteChat(param.chatId!, req.user!.id);
 	}
 
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Post(':chatId/sse/create-stream-session')
 	async createStreamSession(
@@ -529,6 +540,7 @@ export class ChatController {
 	}
 
 	// @UseGuards(JwtAuthGuard) disabled for SSE without auth
+	@Throttle({ default: { limit: 30, ttl: 60000 } })
 	@Sse(':chatId/sse/stream-message')
 	streamMessage(@Param() param: ChatIdParamDTO) {
 		return this.chatService.streamMessage(param.chatId);
@@ -590,6 +602,7 @@ export class ChatController {
 		},
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 10, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Post(':chatId/send-buffered-message')
 	async sendBufferedMessage(
@@ -634,6 +647,7 @@ export class ChatController {
 		description: 'Chat not found or message not found in chat',
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 20, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Patch(':chatId/messages/:messageId/feedback')
 	async updateMessageFeedback(
@@ -678,6 +692,7 @@ export class ChatController {
 		},
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 30, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Get(':chatId/documents')
 	async getChatDocuments(
@@ -756,6 +771,7 @@ export class ChatController {
 		},
 	})
 	@ApiDefaultDocProtected()
+	@Throttle({ default: { limit: 20, ttl: 60000 } })
 	@UseGuards(JwtAuthGuard)
 	@Get(':chatId/documents/:documentId/sign')
 	async getSignedDocumentUrl(
@@ -768,15 +784,5 @@ export class ChatController {
 			documentId,
 			req.user!.id
 		);
-	}
-
-	@ApiOperation({
-		summary: 'Test endpoint - send message without auth/DB/streaming',
-		description:
-			'Simple test endpoint for evaluation. No authentication, no database, just message in and response out.',
-	})
-	@Post('test/simple-message')
-	async testSimpleMessage(@Body() body: { message: string }) {
-		return await this.chatService.testSimpleMessage(body.message);
 	}
 }
