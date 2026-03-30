@@ -182,7 +182,7 @@ Rewrite the query to include relevant context from the conversation that would h
 
 		const queryResult = await collection.query({
 			queryEmbeddings: [queryEmbedding],
-			nResults: 4,
+			nResults: 6,
 			where: whereFilter,
 		});
 
