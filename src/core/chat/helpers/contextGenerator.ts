@@ -189,7 +189,7 @@ reference section chunks.
 
 		const queryResult = await collection.query({
 			queryEmbeddings: [queryEmbedding],
-			nResults: 10,
+			nResults: 15,
 			where: whereFilter,
 		});
 
