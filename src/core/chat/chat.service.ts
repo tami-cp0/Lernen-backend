@@ -1407,6 +1407,7 @@ also if recent chat history or older chat summary is available, treat that as yo
 			const textSplitter = new RecursiveCharacterTextSplitter({
 				chunkSize: 1000,
 				chunkOverlap: 200,
+				separators: ['\n\n', '\n', ' ', ''],
 			});
 
 			const allChunks: Array<{ text: string; page: number }> = [];
