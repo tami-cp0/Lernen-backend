@@ -125,6 +125,7 @@ Rewrite the query to include relevant context from the conversation that would h
 
 example:
 - if the user asks for references, in the rewritten query you should iclude common textx that appear in references sections like "et al", "References", "https://", "DOI", "arXiv", "Google Scholar" etc. to increase chances of retrieving relevant documents.
+- if the user uploads a document with a table of document, there are pages tagged in roman numerals, but you should convert it to actual page numbers to find the correct page i.e if topic A is on page 48 in TOC, add the last roman numeral in the TOC to it, i.e 48 + III, meaning topic A is on page 51
 `;
 
 		try {
