@@ -52,7 +52,7 @@ export class ChatService {
 	private collectionName = 'documents';
 	private readonly DEFAULT_CHAT_NAME = 'New Chat';
 	private readonly CHAT_TITLE_MAX_LENGTH = 28; // Fits in 220px - frontend specifications
-	private readonly MODEL = 'gpt-5-mini';
+	private readonly MODEL = 'gpt-5.2';
 	private collectionCache: any = null; // Cache the collection reference
 
 	constructor(
