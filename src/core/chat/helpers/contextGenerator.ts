@@ -121,7 +121,11 @@ ${conversationContext}
 
 New user query: ${message}
 
-Rewrite the query to include relevant context from the conversation that would help retrieve the most relevant documents. If the query is already clear and specific, you may return it as is. Only return the rewritten query, nothing else.`;
+Rewrite the query to include relevant context from the conversation that would help retrieve the most relevant documents. If the query is already clear and specific, you may return it as is. Only return the rewritten query, nothing else.
+
+example:
+- if the user asks for references, in the rewritten query you should iclude common textx that appear in references sections like "et al", "References", "https://", "DOI", "arXiv", "Google Scholar" etc. to increase chances of retrieving relevant documents.
+`;
 
 		try {
 			const completion = await openai.chat.completions.create({

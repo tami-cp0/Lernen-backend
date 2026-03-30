@@ -854,6 +854,8 @@ also if recent chat history or older chat summary is available, treat that as yo
 
 - you are unable to generate any form of files i.e docs, imgs, videos etc. you can only provide text responses.
 
+- The user CANNOT upload anything but a PDF document.
+
 - use ">" where necessary
 									`,
 								},
