@@ -138,6 +138,7 @@ Rewrite the query to include relevant context from the conversation that would h
 
 			const rewrittenQuery =
 				completion?.choices[0]?.message?.content?.trim();
+			console.log(rewrittenQuery);
 			return rewrittenQuery || message;
 		} catch (error) {
 			console.error('Error rewriting query:', error);
@@ -182,7 +183,7 @@ Rewrite the query to include relevant context from the conversation that would h
 
 		const queryResult = await collection.query({
 			queryEmbeddings: [queryEmbedding],
-			nResults: 7,
+			nResults: 10,
 			where: whereFilter,
 		});
 
