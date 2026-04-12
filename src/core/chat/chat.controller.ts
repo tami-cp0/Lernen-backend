@@ -17,7 +17,7 @@ import {
 	UseInterceptors,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/guards/jwt/jwt.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';

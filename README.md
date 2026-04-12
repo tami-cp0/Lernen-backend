@@ -93,3 +93,84 @@ npm run migrate-sql     # Apply migrations
 - **Streaming**: Uses OpenAI Responses API with SSE; stream sessions are stored in Redis keyed by chat ID
 - **Memory**: Every 6 messages, older turns are summarized with `gpt-5-nano` and stored in the `chat_summaries` table; recent 4 turns are always kept verbatim
 - **Query rewriting**: When conversation history exists, the user's query is rewritten before vector retrieval to improve relevance
+
+
+
+// start
+prevous claude chat told me to add that testing. ps (it was teaching me about testing and we went though, unit, integration, API, security then performance. using this website as blue print: https://www.ramotion.com/blog/what-is-backend-testing/)
+
+
+
+so it went over that quickly and then said we can move on to auth testing, so to make it more real, we use my exisiting project as the ground for it
+
+
+
+
+
+this is the error from the spec.ts i  pasted;
+
+
+
+ FAIL  src/core/auth/auth.service.spec.ts (14.653 s)
+
+  AuthService
+
+    sendMagicLink                                                                                                                                                                                        
+
+      × creates a new user and sends magic link if user does not exist (34 ms)                                                                                                                           
+
+      √ sends magic link to existing user without creating a new one (7 ms)                                                                                                                              
+
+      √ does not expose the raw token in the response (6 ms)                                                                                                                                             
+
+                                                                                                                                                                                                         
+
+  ● AuthService › sendMagicLink › creates a new user and sends magic link if user does not exist                                                                                                         
+
+                                                                                                                                                                                                         
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: "sign_in", "new@example.com", ObjectContaining {"tempToken": "mock-jwt-token"}
+
+    Received: "sign_in", "test@example.com", {"id": "user-123", "tempToken": "mock-jwt-token"}
+
+    Expected: "sign_in", "new@example.com", ObjectContaining {"tempToken": "mock-jwt-token"}
+
+    Received: "sign_in", "test@example.com", {"id": "user-123", "tempToken": "mock-jwt-token"}
+
+    Number of calls: 1
+
+      90 |
+
+      91 |       expect(result.message).toBe('Magic link sent! Please check your email.');
+
+    > 92 |       expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+
+         |                                          ^
+
+      93 |         'sign_in',
+
+      94 |         'new@example.com',
+
+      95 |         expect.objectContaining({ tempToken: 'mock-jwt-token' })
+
+      at Object.<anonymous> (core/auth/auth.service.spec.ts:92:42)
+
+Test Suites: 1 failed, 1 total
+
+Tests:       1 failed, 2 passed, 3 total
+
+Snapshots:   0 total
+
+Time:        15.226 s
+
+Ran all test suites.
+
+
+
+
+
+
+
+i will attach the github repo once you reply short response to this

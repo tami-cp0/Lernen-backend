@@ -1,4 +1,24 @@
 {
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    }
+  },
   "name": "lernen",
   "version": "1.0.0",
   "scripts": {
@@ -8,7 +28,10 @@
     "start:prod": "node dist/main.js",
     "vercel-build": "npm run build",
     "generate-sql": "npx drizzle-kit generate --config=src/config/drizzle.config.ts",
-    "migrate-sql": "npx drizzle-kit migrate --config=src/config/drizzle.config.ts"
+    "migrate-sql": "npx drizzle-kit migrate --config=src/config/drizzle.config.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
   },
   "keywords": [],
   "author": "Oluwatamilore Olugbesan",
@@ -50,14 +73,20 @@
   },
   "devDependencies": {
     "@nestjs/schematics": "^11.0.5",
+    "@nestjs/testing": "^11.1.18",
     "@types/bcrypt": "^5.0.2",
+    "@types/jest": "^30.0.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.0.8",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/pg": "^8.15.4",
+    "@types/supertest": "^7.2.0",
     "drizzle-kit": "^0.31.4",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.8.3"
   }
 }

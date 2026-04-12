@@ -9,7 +9,7 @@ import {
 	Put,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { Request as UserRequest } from 'express';
+import type { Request as UserRequest } from 'express';
 import { AuthService } from './auth.service';
 import { SignInBodyDTO } from './dto/signIn.dto';
 import {
