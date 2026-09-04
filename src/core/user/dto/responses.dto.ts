@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Role } from "../user.types";
+import type { Role } from "../user.types";
 import { users } from "src/database/schema";
 import { InferSelectModel } from "drizzle-orm";
 

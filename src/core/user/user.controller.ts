@@ -4,7 +4,7 @@ import { UserService } from './user.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt/jwt.guard';
 import { RolesGuard } from '../auth/guards/roles/roles.guard';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { UpdateProfileBodyDTO } from './dto/updateProfile.dto';
 import { ApiDefaultDocProtected } from 'src/swagger';
 import {
