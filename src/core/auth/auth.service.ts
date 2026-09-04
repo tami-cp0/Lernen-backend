@@ -227,6 +227,7 @@ export class AuthService {
 				data: {
 					accessToken,
 					refreshToken,
+					onboarded: true,
 				},
 			};
 		} catch (err) {
