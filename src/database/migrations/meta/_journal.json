@@ -36,6 +36,13 @@
       "when": 1767821426257,
       "tag": "0004_magical_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788516522020,
+      "tag": "0005_mighty_stardust",
+      "breakpoints": true
     }
   ]
 }

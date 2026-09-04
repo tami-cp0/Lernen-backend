@@ -22,7 +22,7 @@ import { S3Service } from 'src/common/services/s3/s3.service';
 import { ContextGeneratorService } from './helpers/contextGenerator';
 import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
-import { CacheService } from 'src/common/services/cache/cache.service';
+import { StreamSessionService } from './helpers/streamSession.service';
 
 /**
  * Custom OpenAI Embedding Function for ChromaDB
@@ -60,7 +60,7 @@ export class ChatService {
 		private databaseService: DatabaseService,
 		private s3Service: S3Service,
 		private contextGenerator: ContextGeneratorService,
-		private cacheService: CacheService
+		private streamSessionService: StreamSessionService
 	) {
 		const openaiKey =
 			this.configService.get<OpenAIConfigType>('openai')!.key!;
@@ -595,7 +595,7 @@ also if recent chat history or older chat summary is available, treat that as yo
 	) {
 		try {
 			const streamSessionId =
-				await this.cacheService.storeStreamSessionData(
+				await this.streamSessionService.storeStreamSessionData(
 					chatId,
 					message,
 					userId,
@@ -626,7 +626,9 @@ also if recent chat history or older chat summary is available, treat that as yo
 			(async () => {
 				try {
 					const session =
-						await this.cacheService.getStreamSessionData(chatId);
+						await this.streamSessionService.getStreamSessionData(
+							chatId
+						);
 
 					if (!session) {
 						throw new BadRequestException(
@@ -701,41 +703,9 @@ also if recent chat history or older chat summary is available, treat that as yo
 									.orderBy(desc(chatMessages.createdAt))
 									.limit(4)
 									.then((msgs) => msgs.reverse()),
-						// Try to get user from cache first, fallback to database
-						(async () => {
-							const cachedUser =
-								await this.cacheService.getCachedUser(userId);
-							if (cachedUser) {
-								return cachedUser;
-							}
-
-							const dbUser =
-								await this.databaseService.db.query.users.findFirst(
-									{
-										where: eq(users.id, userId),
-									}
-								);
-
-							// Cache the user data for future requests
-							if (dbUser) {
-								await this.cacheService
-									.cacheUser(userId, {
-										id: dbUser.id,
-										educationLevel: dbUser.educationLevel,
-										email: dbUser.email,
-										firstName: dbUser.firstName,
-										lastName: dbUser.lastName,
-									})
-									.catch((err) =>
-										console.error(
-											'Failed to cache user data:',
-											err
-										)
-									);
-							}
-
-							return dbUser;
-						})(),
+						this.databaseService.db.query.users.findFirst({
+							where: eq(users.id, userId),
+						}),
 					]);
 
 					const recentHistory =
@@ -898,7 +868,9 @@ also if recent chat history or older chat summary is available, treat that as yo
 						});
 
 					// initiate completion
-					await this.cacheService.deleteStreamSessionData(chatId);
+					await this.streamSessionService.deleteStreamSessionData(
+						chatId
+					);
 					observer.next({
 						data: JSON.stringify({ type: 'done' }),
 					});

@@ -121,15 +121,6 @@ class EnvironmentVariables {
   @IsString({ message: 'CLOUDFLARE_R2_SECRET_ACCESS_KEY must be a string' })
   @IsNotEmpty({ message: 'CLOUDFLARE_R2_SECRET_ACCESS_KEY is required and cannot be empty' })
   CLOUDFLARE_R2_SECRET_ACCESS_KEY: string;
-
-  // Redis
-  @IsString({ message: 'UPSTASH_REDIS_URL must be a string' })
-  @IsNotEmpty({ message: 'UPSTASH_REDIS_URL is required and cannot be empty' })
-  UPSTASH_REDIS_URL: string;
-
-  @IsString({ message: 'UPSTASH_REDIS_TOKEN must be a string' })
-  @IsNotEmpty({ message: 'UPSTASH_REDIS_TOKEN is required and cannot be empty' })
-  UPSTASH_REDIS_TOKEN: string;
 }
 
 

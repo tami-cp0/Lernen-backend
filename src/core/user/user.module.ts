@@ -3,10 +3,9 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { DatabaseModule } from 'src/database/database.module';
 import { EmailModule } from 'src/common/services/email/email.module';
-import { CacheModule } from 'src/common/services/cache/cache.module';
 
 @Module({
-	imports: [DatabaseModule, EmailModule, CacheModule],
+	imports: [DatabaseModule, EmailModule],
 	providers: [UserService],
 	controllers: [UserController],
 })

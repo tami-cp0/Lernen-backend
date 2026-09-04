@@ -4,14 +4,12 @@ import { Role } from './user.types';
 import { users } from 'src/database/schema';
 import { eq, ne, or } from 'drizzle-orm';
 import { EmailService } from 'src/common/services/email/email.service';
-import { CacheService } from 'src/common/services/cache/cache.service';
 
 @Injectable()
 export class UserService {
 	constructor(
 		private databaseService: DatabaseService,
-		private emailService: EmailService,
-		private cacheService: CacheService
+		private emailService: EmailService
 	) {}
 
 	async updateProfile(
@@ -35,13 +33,6 @@ export class UserService {
 			.set(updates)
 			.where(eq(users.id, userId))
 			.returning();
-
-		// Invalidate user cache after profile update
-		await this.cacheService
-			.invalidateUserCache(userId)
-			.catch((err) =>
-				console.error('Failed to invalidate user cache:', err)
-			);
 
 		return {
 			message: 'Profile updated successfully',

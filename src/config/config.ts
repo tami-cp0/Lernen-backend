@@ -86,16 +86,8 @@ export const s3Config = registerAs(
     })
 )
 
-export const redisConfig = registerAs(
-    'redis',
-    () => ({
-        url: process.env.UPSTASH_REDIS_URL,
-        token: process.env.UPSTASH_REDIS_TOKEN,
-    })
-)
-
 export const configurations = [
-    AppConfig,  
+    AppConfig,
     DatabaseConfig,
     JwtConfig,
     GmailConfig,
@@ -105,5 +97,4 @@ export const configurations = [
     GoogleConfig,
     ChromaConfig,
     s3Config,
-    redisConfig,
 ];
